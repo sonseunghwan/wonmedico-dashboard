@@ -15,11 +15,16 @@ const VIEW_RENDERERS = {
   admin: renderAdmin
 };
 
+function hideBootScreen() {
+  document.getElementById("bootScreen")?.classList.add("hidden");
+}
 function showApp() {
+  hideBootScreen();
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("appShell").classList.remove("hidden");
 }
 function showLogin() {
+  hideBootScreen();
   document.getElementById("loginScreen").classList.remove("hidden");
   document.getElementById("appShell").classList.add("hidden");
 }

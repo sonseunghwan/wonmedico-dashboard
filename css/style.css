@@ -31,6 +31,23 @@ body{
 button,input{font-family:inherit}
 .hidden{display:none !important}
 
+/* ---------- Boot loading ---------- */
+.boot-screen{
+  position:fixed;inset:0;z-index:100;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+}
+.boot-logo{
+  width:48px;height:48px;border-radius:12px;
+  background:var(--brand);color:#fff;font-weight:800;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  animation:boot-pulse 1.1s ease-in-out infinite;
+}
+@keyframes boot-pulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.55;transform:scale(.92)}
+}
+
 /* ---------- Login ---------- */
 .login-screen{
   min-height:100vh;

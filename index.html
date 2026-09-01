@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=7">
+<link rel="stylesheet" href="css/style.css?v=8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -15,8 +15,13 @@
 </head>
 <body>
 
+<!-- ===== BOOT LOADING SCREEN ===== -->
+<div id="bootScreen" class="boot-screen">
+  <div class="boot-logo">WM</div>
+</div>
+
 <!-- ===== LOGIN SCREEN ===== -->
-<div id="loginScreen" class="login-screen">
+<div id="loginScreen" class="login-screen hidden">
   <div class="login-card">
     <div class="login-brand">
       <div class="login-logo">WM</div>
@@ -120,14 +125,14 @@
   </div>
 </div>
 
-<script src="js/supabase-client.js?v=7"></script>
-<script src="js/analytics.js?v=7"></script>
-<script src="js/charts.js?v=7"></script>
-<script src="js/view-overview.js?v=7"></script>
-<script src="js/view-sales.js?v=7"></script>
-<script src="js/view-inventory.js?v=7"></script>
-<script src="js/view-upload.js?v=7"></script>
-<script src="js/view-admin.js?v=7"></script>
-<script src="js/main.js?v=7"></script>
+<script src="js/supabase-client.js?v=8"></script>
+<script src="js/analytics.js?v=8"></script>
+<script src="js/charts.js?v=8"></script>
+<script src="js/view-overview.js?v=8"></script>
+<script src="js/view-sales.js?v=8"></script>
+<script src="js/view-inventory.js?v=8"></script>
+<script src="js/view-upload.js?v=8"></script>
+<script src="js/view-admin.js?v=8"></script>
+<script src="js/main.js?v=8"></script>
 </body>
 </html>
