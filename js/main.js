@@ -29,6 +29,15 @@ function showLogin() {
   document.getElementById("appShell").classList.add("hidden");
 }
 
+function toggleMobileMenu() {
+  document.querySelector(".sidebar")?.classList.toggle("open");
+  document.getElementById("sidebarScrim")?.classList.toggle("open");
+}
+function closeMobileMenu() {
+  document.querySelector(".sidebar")?.classList.remove("open");
+  document.getElementById("sidebarScrim")?.classList.remove("open");
+}
+
 function setActiveNav(view) {
   document.querySelectorAll(".nav-item").forEach(el => el.classList.toggle("active", el.dataset.view === view));
   document.getElementById("viewTitle").textContent = VIEW_TITLES[view] || "";
@@ -57,13 +66,17 @@ function updateDataUpdatedLabel() {
 async function initAppShell() {
   document.getElementById("userEmailLabel").textContent = Store.session.user.email;
   document.getElementById("userAvatar").textContent = (Store.session.user.email || "?")[0].toUpperCase();
-  document.getElementById("userRoleLabel").textContent = Store.profile?.is_admin ? "관리자" : "뷰어";
+  const roleLabel = Store.profile?.is_admin ? "관리자" : "뷰어";
+  const deptPos = [Store.profile?.department, Store.profile?.position].filter(Boolean).join(" · ");
+  document.getElementById("userRoleLabel").textContent = deptPos ? `${roleLabel} · ${deptPos}` : roleLabel;
 
   document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", !Store.profile?.is_admin));
 
   document.querySelectorAll(".nav-item").forEach(btn => {
-    btn.addEventListener("click", () => renderView(btn.dataset.view));
+    btn.addEventListener("click", () => { renderView(btn.dataset.view); closeMobileMenu(); });
   });
+  document.getElementById("menuToggleBtn")?.addEventListener("click", toggleMobileMenu);
+  document.getElementById("sidebarScrim")?.addEventListener("click", closeMobileMenu);
   document.getElementById("changePasswordBtn").addEventListener("click", openPasswordModal);
   document.getElementById("logoutBtn").addEventListener("click", async () => {
     await sb.auth.signOut();

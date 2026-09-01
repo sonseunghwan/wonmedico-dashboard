@@ -12,26 +12,28 @@ function renderOverview(container) {
 
   container.innerHTML = `
     <div class="page-lede">
-      <div class="page-lede-eyebrow">WONMEDICO SALES</div>
-      <div class="page-lede-title">매출 종합 현황</div>
-      <div class="page-lede-sub">기간별 매출 추이 · 브랜드/거래처 구성 · 제품 랭킹</div>
+      <div>
+        <div class="page-lede-eyebrow">WONMEDICO SALES</div>
+        <div class="page-lede-title">📊 매출 종합 현황</div>
+        <div class="page-lede-sub">기간별 매출 추이 · 브랜드/거래처 구성 · 제품 랭킹</div>
+      </div>
+      <div class="page-lede-meta">기준일 ${latestDataDate().toISOString().slice(0, 10)}<br>업로드 시 자동 갱신됩니다</div>
     </div>
 
     <div class="filter-bar" id="ovFilterBar">
+      <span class="text-mute" style="font-size:12.5px;font-weight:600">📅 조회 기간</span>
+      ${buildYearMonthPicker("ovStart", range.start)}
+      <span class="text-faint">~</span>
+      ${buildYearMonthPicker("ovEnd", range.end)}
       <div class="pill-group">
         <button class="chip-btn" data-preset="thisYear">올해</button>
         <button class="chip-btn" data-preset="lastYear">작년</button>
         <button class="chip-btn" data-preset="last12m">최근 12개월</button>
         <button class="chip-btn" data-preset="all">전체 기간</button>
       </div>
-      <div class="filter-spacer"></div>
-      <span class="text-mute" style="font-size:12.5px;font-weight:600">조회 기간</span>
-      ${buildYearMonthPicker("ovStart", range.start)}
-      <span class="text-faint">~</span>
-      ${buildYearMonthPicker("ovEnd", range.end)}
     </div>
 
-    <div class="grid grid-4" id="ovKpiGrid"></div>
+    <div class="kpi-band" id="ovKpiGrid"></div>
 
     <div class="section-title">월별 매출 추이 <span class="text-faint" style="font-weight:400;font-size:12px">막대=선택연도 · 점선=전년 동기 (범례 클릭으로 표시/숨김)</span></div>
     <div class="card chart-card">
@@ -158,22 +160,22 @@ function deltaTag(pct) {
 
 function renderKpiGrid(el, kpi, range, sales) {
   el.innerHTML = `
-    <div class="card kpi-card">
+    <div class="kpi-band-item">
       <div class="kpi-label">누계 매출 (전년 동기 대비)</div>
-      <div class="kpi-value">${fmtWon(kpi.curRevenue)}</div>
+      <div class="kpi-value kpi-value-hero">${fmtWon(kpi.curRevenue)}</div>
       <div class="kpi-sub">${deltaTag(kpi.yoy)} · 전년 ${fmtWon(kpi.prevRevenue)}</div>
     </div>
-    <div class="card kpi-card">
+    <div class="kpi-band-item">
       <div class="kpi-label">월 평균 매출</div>
       <div class="kpi-value">${fmtWon(kpi.monthlyAvg)}</div>
       <div class="kpi-sub">거래 ${fmtNum(kpi.dealCount)}건 · 건당 평균 ${fmtWon(kpi.avgDeal)}</div>
     </div>
-    <div class="card kpi-card">
+    <div class="kpi-band-item">
       <div class="kpi-label">총 판매 수량 (전년 동기 대비)</div>
       <div class="kpi-value">${fmtNum(kpi.totalQty)}개</div>
       <div class="kpi-sub">${deltaTag(kpi.qtyYoy)}</div>
     </div>
-    <div class="card kpi-card ${kpi.topProduct ? "clickable-row" : ""}" id="ovTopProductCard" title="${kpi.topProduct ? "클릭하면 상세 거래내역을 볼 수 있어요" : ""}">
+    <div class="kpi-band-item ${kpi.topProduct ? "clickable-row" : ""}" id="ovTopProductCard" title="${kpi.topProduct ? "클릭하면 상세 거래내역을 볼 수 있어요" : ""}">
       <div class="kpi-label">1위 제품 ${kpi.topProduct ? '<span class="text-faint" style="font-weight:400">🔍 상세</span>' : ""}</div>
       <div class="kpi-value" style="font-size:16px">${kpi.topProduct ? escapeHtml(kpi.topProduct.key) : "-"}</div>
       <div class="kpi-sub">${kpi.topProduct ? fmtWon(kpi.topProduct.revenue) + " · 취급 " + kpi.productCount + "종" : ""}</div>

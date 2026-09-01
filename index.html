@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -90,10 +90,14 @@
       <button class="btn btn-ghost btn-block" id="logoutBtn">로그아웃</button>
     </div>
   </aside>
+  <div class="sidebar-scrim" id="sidebarScrim"></div>
 
   <main class="main-area">
     <header class="topbar">
-      <div class="topbar-title" id="viewTitle">종합 현황</div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <button class="menu-toggle-btn" id="menuToggleBtn" title="메뉴">☰</button>
+        <div class="topbar-title" id="viewTitle">종합 현황</div>
+      </div>
       <div class="topbar-actions">
         <span class="data-updated" id="dataUpdatedLabel"></span>
         <button class="btn btn-ghost" id="refreshBtn" title="데이터 새로고침">↻ 새로고침</button>
@@ -125,14 +129,14 @@
   </div>
 </div>
 
-<script src="js/supabase-client.js?v=9"></script>
-<script src="js/analytics.js?v=9"></script>
-<script src="js/charts.js?v=9"></script>
-<script src="js/view-overview.js?v=9"></script>
-<script src="js/view-sales.js?v=9"></script>
-<script src="js/view-inventory.js?v=9"></script>
-<script src="js/view-upload.js?v=9"></script>
-<script src="js/view-admin.js?v=9"></script>
-<script src="js/main.js?v=9"></script>
+<script src="js/supabase-client.js?v=10"></script>
+<script src="js/analytics.js?v=10"></script>
+<script src="js/charts.js?v=10"></script>
+<script src="js/view-overview.js?v=10"></script>
+<script src="js/view-sales.js?v=10"></script>
+<script src="js/view-inventory.js?v=10"></script>
+<script src="js/view-upload.js?v=10"></script>
+<script src="js/view-admin.js?v=10"></script>
+<script src="js/main.js?v=10"></script>
 </body>
 </html>

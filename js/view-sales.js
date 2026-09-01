@@ -10,21 +10,25 @@ function renderSales(container) {
 
   container.innerHTML = `
     <div class="page-lede">
-      <div class="page-lede-eyebrow">WONMEDICO SALES</div>
-      <div class="page-lede-title">매출 분석 심층</div>
-      <div class="page-lede-sub">제품별 랭킹 · 거래처별 · 담당자별 · 급성장/급감 품목</div>
+      <div>
+        <div class="page-lede-eyebrow">WONMEDICO SALES</div>
+        <div class="page-lede-title">🔍 매출 분석 심층</div>
+        <div class="page-lede-sub">제품별 랭킹 · 거래처별 · 담당자별 · 급성장/급감 품목</div>
+      </div>
+      <div class="page-lede-meta">기준일 ${latestDataDate().toISOString().slice(0, 10)}</div>
     </div>
 
     <div class="filter-bar" id="saFilterBar">
-      <button class="chip-btn" data-preset="thisYear">올해</button>
-      <button class="chip-btn" data-preset="lastYear">작년</button>
-      <button class="chip-btn" data-preset="last12m">최근 12개월</button>
-      <button class="chip-btn" data-preset="all">전체 기간</button>
-      <div class="filter-spacer"></div>
-      <span class="text-mute" style="font-size:12.5px;font-weight:600">조회 기간</span>
+      <span class="text-mute" style="font-size:12.5px;font-weight:600">📅 조회 기간</span>
       ${buildYearMonthPicker("saStart", range.start)}
       <span class="text-faint">~</span>
       ${buildYearMonthPicker("saEnd", range.end)}
+      <div class="pill-group">
+        <button class="chip-btn" data-preset="thisYear">올해</button>
+        <button class="chip-btn" data-preset="lastYear">작년</button>
+        <button class="chip-btn" data-preset="last12m">최근 12개월</button>
+        <button class="chip-btn" data-preset="all">전체 기간</button>
+      </div>
     </div>
 
     <div class="section-title">최근 12개월 매출 추이</div>

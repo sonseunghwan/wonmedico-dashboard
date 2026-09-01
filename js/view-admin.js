@@ -9,6 +9,8 @@ function renderAdmin(container) {
       <form class="admin-form" id="adminCreateForm">
         <label>이메일<input type="email" id="newUserEmail" required placeholder="name@company.com"></label>
         <label>임시 비밀번호<input type="text" id="newUserPassword" required placeholder="8자 이상" minlength="8"></label>
+        <label>부서<input type="text" id="newUserDept" placeholder="예: 국내영업팀"></label>
+        <label>직급<input type="text" id="newUserPosition" placeholder="예: 대리"></label>
         <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="newUserIsAdmin" style="width:auto"> 관리자 권한</label>
         <button type="submit" class="btn btn-primary">계정 생성</button>
       </form>
@@ -23,11 +25,16 @@ function renderAdmin(container) {
     e.preventDefault();
     const email = document.getElementById("newUserEmail").value.trim();
     const password = document.getElementById("newUserPassword").value;
+    const department = document.getElementById("newUserDept").value.trim() || null;
+    const position = document.getElementById("newUserPosition").value.trim() || null;
     const isAdmin = document.getElementById("newUserIsAdmin").checked;
     const btn = e.target.querySelector("button[type=submit]");
     btn.disabled = true; btn.textContent = "생성 중...";
     try {
-      await callAdminFn({ action: "create", email, password, is_admin: isAdmin });
+      const created = await callAdminFn({ action: "create", email, password, is_admin: isAdmin });
+      if (department || position) {
+        await sb.from("profiles").update({ department, position }).eq("id", created.id);
+      }
       toast(`계정 생성 완료: ${email}`, "success");
       e.target.reset();
       await loadUserTable();
@@ -49,13 +56,16 @@ async function loadUserTable() {
   if (error) { wrap.innerHTML = `<div class="empty-note">오류: ${error.message}</div>`; return; }
   wrap.innerHTML = `
     <table class="data-table">
-      <thead><tr><th>이메일</th><th>권한</th><th>가입일</th><th></th></tr></thead>
+      <thead><tr><th>이메일</th><th>부서</th><th>직급</th><th>권한</th><th>가입일</th><th></th></tr></thead>
       <tbody>${data.map(u => `
-        <tr>
+        <tr data-id="${u.id}">
           <td>${escapeHtml(u.email)}</td>
+          <td><input type="text" class="dept-input" value="${escapeHtml(u.department || "")}" placeholder="부서" style="width:100px;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:12.5px"></td>
+          <td><input type="text" class="position-input" value="${escapeHtml(u.position || "")}" placeholder="직급" style="width:80px;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:12.5px"></td>
           <td>${u.is_admin ? '<span class="badge-admin">관리자</span>' : '<span class="badge-viewer">뷰어</span>'}</td>
           <td>${fmtDate(u.created_at)}</td>
           <td style="white-space:nowrap">
+            <button class="btn btn-sm save-profile-btn">저장</button>
             <button class="btn btn-sm reset-pw-btn" data-id="${u.id}" data-email="${escapeHtml(u.email)}">비번 재설정</button>
             ${u.id !== Store.session.user.id ? `
               <button class="btn btn-sm toggle-admin-btn" data-id="${u.id}" data-cur="${u.is_admin}">${u.is_admin ? "권한 해제" : "관리자 지정"}</button>
@@ -66,6 +76,19 @@ async function loadUserTable() {
       </tbody>
     </table>
   `;
+  wrap.querySelectorAll(".save-profile-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const tr = btn.closest("tr");
+      const id = tr.dataset.id;
+      const department = tr.querySelector(".dept-input").value.trim() || null;
+      const position = tr.querySelector(".position-input").value.trim() || null;
+      btn.disabled = true; btn.textContent = "저장 중...";
+      const { error } = await sb.from("profiles").update({ department, position }).eq("id", id);
+      if (error) { toast(error.message, "error"); }
+      else { toast("저장되었습니다", "success"); }
+      btn.disabled = false; btn.textContent = "저장";
+    });
+  });
   wrap.querySelectorAll(".toggle-admin-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       const makeAdmin = btn.dataset.cur !== "true";

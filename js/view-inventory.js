@@ -29,7 +29,7 @@ function renderInventory(container) {
   container.innerHTML = `
     <div class="page-lede">
       <div class="page-lede-eyebrow">WONMEDICO INVENTORY</div>
-      <div class="page-lede-title">재고 관리</div>
+      <div class="page-lede-title">📦 재고 관리</div>
       <div class="page-lede-sub">현황 · 입출고 기록 · 발주 제안 · 품목별 재주문 설정</div>
     </div>
     <div class="pill-group" id="invTabbar" style="margin-bottom:16px">
@@ -67,23 +67,23 @@ function renderInvStatusTab(body, inventory) {
   const recentTxCount = transactions.filter(t => t.tx_date >= isoDaysAgo(7)).length;
 
   body.innerHTML = `
-    <div class="grid grid-4">
-      <div class="card kpi-card">
+    <div class="kpi-band">
+      <div class="kpi-band-item">
         <div class="kpi-label">취급 품목수</div>
-        <div class="kpi-value">${fmtNum(kpi.totalItems)}종</div>
+        <div class="kpi-value kpi-value-hero">${fmtNum(kpi.totalItems)}종</div>
         <div class="kpi-sub">실시간 총 재고 ${fmtNum(totalEff)}개</div>
       </div>
-      <div class="card kpi-card">
+      <div class="kpi-band-item">
         <div class="kpi-label">추정 재고자산 가치</div>
         <div class="kpi-value">${fmtWon(kpi.valuation)}</div>
         <div class="kpi-sub">최근 90일 판매단가 기준 · ${kpi.valuedCount}/${kpi.totalItems}종 매칭</div>
       </div>
-      <div class="card kpi-card">
+      <div class="kpi-band-item">
         <div class="kpi-label">유통기한 임박 (90일 이내)</div>
         <div class="kpi-value" style="${kpi.expiringSoon.length ? "color:var(--red)" : ""}">${kpi.expiringSoon.length}종</div>
         <div class="kpi-sub">${kpi.expired.length > 0 ? `⚠ 유통기한 경과 ${kpi.expired.length}종 포함` : "경과 품목 없음"}</div>
       </div>
-      <div class="card kpi-card">
+      <div class="kpi-band-item">
         <div class="kpi-label">최근 7일 입출고 기록</div>
         <div class="kpi-value">${fmtNum(recentTxCount)}건</div>
         <div class="kpi-sub"><a href="#" id="invGotoTx" class="text-mute" style="text-decoration:underline">입출고 기록 보기 →</a></div>
@@ -329,7 +329,7 @@ function renderInvTxTab(body, inventory) {
   body.innerHTML = `
     <div class="card card-pad" style="margin-bottom:16px">
       <div class="chart-card-title" style="margin-bottom:12px">입출고 기록 추가</div>
-      <form id="txForm" class="admin-form" style="grid-template-columns:1.6fr 1fr .8fr 1fr auto">
+      <form id="txForm" class="admin-form admin-form-tx">
         <label>품목명 *<input type="text" id="txItem" list="invItemList" required value="${escapeHtml(prefill)}"></label>
         <label>유형 *<select id="txType">${TX_TYPES.map(t => `<option value="${t}">${t}</option>`).join("")}</select></label>
         <label>수량 *<input type="number" id="txQty" min="0.01" step="any" required></label>
