@@ -250,7 +250,7 @@ function computeRecentMonthDetail(sales) {
   const products = groupSum(cur, "item_name").slice(0, 5);
   const totalRevenue = curRevenue;
   return {
-    monthLabel: `${y}년 ${m + 1}월`,
+    monthLabel: `${y}년 ${m + 1}월`, mKey,
     curRevenue, momRevenue, yoyRevenue,
     momGrowth: momRevenue > 0 ? ((curRevenue - momRevenue) / momRevenue) * 100 : null,
     yoyGrowth: yoyRevenue > 0 ? ((curRevenue - yoyRevenue) / yoyRevenue) * 100 : null,

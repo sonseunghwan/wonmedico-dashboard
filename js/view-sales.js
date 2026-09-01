@@ -35,14 +35,15 @@ function renderSales(container) {
     <div class="section-title">기간 내 급성장 / 급감 품목 <span class="text-faint" style="font-weight:400;font-size:12px">전년 동기 대비, 매출 500만원 이상 품목</span></div>
     <div class="two-col" id="saMovers"></div>
 
-    <div class="section-title" style="display:flex;align-items:center;gap:14px">
-      <div class="tabbar" id="saTabbar" style="display:flex;gap:6px">
-        <button class="chip-btn" data-tab="product">제품별</button>
-        <button class="chip-btn" data-tab="customer">거래처별</button>
-        <button class="chip-btn" data-tab="manager">담당자별</button>
+    <div class="section-title" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="pill-group" id="saTabbar">
+        <button class="chip-btn" data-tab="product">📦 제품별</button>
+        <button class="chip-btn" data-tab="customer">🏢 거래처별</button>
+        <button class="chip-btn" data-tab="manager">🧑 담당자별</button>
       </div>
       <input type="text" id="saSearch" class="search-input" placeholder="검색...">
       <div class="filter-spacer"></div>
+      <span class="text-faint" style="font-size:11.5px">행을 클릭하면 상세 거래내역을 볼 수 있어요</span>
       <button class="btn btn-ghost btn-sm" id="saExportBtn">⇩ CSV 내보내기</button>
     </div>
     <div class="card"><div class="table-wrap" id="saTableWrap"></div></div>
@@ -59,7 +60,7 @@ function renderSales(container) {
 
   const prevRange = shiftRangeOneYearBack(range.start, range.end);
   const ranking = computeProductRanking(sales, range, prevRange);
-  renderMovers(document.getElementById("saMovers"), ranking);
+  renderMovers(document.getElementById("saMovers"), ranking, sales, range);
 
   const searchEl = document.getElementById("saSearch");
   let searchTerm = AppState.salesSearch || "";
@@ -99,12 +100,12 @@ function exportSalesTableCsv(tab, sales, range, prevRange, term) {
   }
 }
 
-function renderMovers(el, ranking) {
+function renderMovers(el, ranking, sales, range) {
   const eligible = ranking.filter(r => r.revenue >= 5000000 && r.growth !== null);
   const gainers = [...eligible].filter(r => r.growth > 0).sort((a, b) => b.growth - a.growth).slice(0, 5);
   const losers = [...eligible].filter(r => r.growth < 0).sort((a, b) => a.growth - b.growth).slice(0, 5);
   const row = (r) => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f1f4">
+    <div class="clickable-row mover-row" data-item="${escapeHtml(r.key)}" style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid #f0f1f4;border-radius:6px">
       <div style="min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${escapeHtml(r.key)}</div>
         <div class="text-faint" style="font-size:11.5px">${fmtWon(r.revenue)}</div>
@@ -121,6 +122,13 @@ function renderMovers(el, ranking) {
       ${losers.length ? losers.map(row).join("") : '<div class="empty-note">데이터 부족</div>'}
     </div>
   `;
+  el.querySelectorAll(".mover-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const item = row.dataset.item;
+      const rows = filterByRange(sales, range.start, range.end).filter(r => r.item_name === item);
+      openSalesDetailModal(item, rows, { subtitle: `${range.start} ~ ${range.end}` });
+    });
+  });
 }
 
 function renderSalesTable(tab, sales, range, prevRange, search) {
@@ -138,7 +146,7 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
           <th class="num">판매수량</th><th class="num">평균단가</th><th class="num">전년동기</th>
         </tr></thead>
         <tbody>${rows.map(r => `
-          <tr>
+          <tr class="clickable-row" data-item="${escapeHtml(r.key)}">
             <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
             <td>${escapeHtml(r.key)}</td>
             <td><span class="tag ${ABC_CLASS_TAG[computeABCClass(r.cumShare)]}">${computeABCClass(r.cumShare)}</span></td>
@@ -151,6 +159,13 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
           </tr>`).join("")}
         </tbody>
       </table>`;
+    wrap.querySelectorAll("tr.clickable-row").forEach(tr => {
+      tr.addEventListener("click", () => {
+        const item = tr.dataset.item;
+        const detail = filterByRange(sales, range.start, range.end).filter(r => r.item_name === item);
+        openSalesDetailModal(item, detail, { subtitle: `${range.start} ~ ${range.end}` });
+      });
+    });
   } else if (tab === "customer") {
     let cust = computeCustomerAnalysis(sales, range);
     let rows = cust.ranking;
@@ -160,7 +175,7 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
       <table class="data-table">
         <thead><tr><th>순위</th><th>거래처</th><th class="num">매출</th><th class="num">비중</th><th class="num">거래건수</th><th class="num">건당 평균</th><th>최근 구매일</th></tr></thead>
         <tbody>${rows.map(r => `
-          <tr>
+          <tr class="clickable-row" data-item="${escapeHtml(r.key)}">
             <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
             <td>${escapeHtml(r.key)}</td>
             <td class="num">${fmtWon(r.revenue)}</td>
@@ -171,6 +186,13 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
           </tr>`).join("")}
         </tbody>
       </table>`;
+    wrap.querySelectorAll("tr.clickable-row").forEach(tr => {
+      tr.addEventListener("click", () => {
+        const cust2 = tr.dataset.item;
+        const detail = filterByRange(sales, range.start, range.end).filter(r => (r.customer || "(미지정)") === cust2);
+        openSalesDetailModal(cust2, detail, { subtitle: `${range.start} ~ ${range.end}` });
+      });
+    });
   } else {
     let rows = computeManagerPerformance(sales, range);
     if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
@@ -178,7 +200,7 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
       <table class="data-table">
         <thead><tr><th>순위</th><th>담당자</th><th class="num">매출</th><th class="num">비중</th><th class="num">거래건수</th><th class="num">건당 평균</th></tr></thead>
         <tbody>${rows.map(r => `
-          <tr>
+          <tr class="clickable-row" data-item="${escapeHtml(r.key)}">
             <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
             <td>${escapeHtml(r.key)}</td>
             <td class="num">${fmtWon(r.revenue)}</td>
@@ -188,5 +210,12 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
           </tr>`).join("")}
         </tbody>
       </table>`;
+    wrap.querySelectorAll("tr.clickable-row").forEach(tr => {
+      tr.addEventListener("click", () => {
+        const mgr = tr.dataset.item;
+        const detail = filterByRange(sales, range.start, range.end).filter(r => (r.manager || "(미지정)") === mgr);
+        openSalesDetailModal(mgr, detail, { subtitle: `${range.start} ~ ${range.end}` });
+      });
+    });
   }
 }

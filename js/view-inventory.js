@@ -7,10 +7,10 @@ const INV_STATUS_LABEL = {
 };
 
 const INV_TABS = [
-  { key: "status", label: "현황" },
-  { key: "tx", label: "입출고 기록" },
-  { key: "reorder", label: "발주 제안" },
-  { key: "settings", label: "품목 설정" }
+  { key: "status", label: "📋 현황" },
+  { key: "tx", label: "📥 입출고 기록" },
+  { key: "reorder", label: "🛒 발주 제안" },
+  { key: "settings", label: "⚙ 품목 설정" }
 ];
 
 function itemDatalist(inventory) {
@@ -32,7 +32,7 @@ function renderInventory(container) {
       <div class="page-lede-title">재고 관리</div>
       <div class="page-lede-sub">현황 · 입출고 기록 · 발주 제안 · 품목별 재주문 설정</div>
     </div>
-    <div class="tabbar" id="invTabbar" style="display:flex;gap:6px;margin-bottom:16px">
+    <div class="pill-group" id="invTabbar" style="margin-bottom:16px">
       ${INV_TABS.map(t => `<button class="chip-btn" data-tab="${t.key}">${t.label}</button>`).join("")}
     </div>
     <div id="invTabBody"></div>
@@ -106,11 +106,13 @@ function renderInvStatusTab(body, inventory) {
       <button class="btn btn-primary btn-sm" id="invAddItemBtn">+ 새 품목 추가</button>
     </div>
     <div class="filter-bar">
-      <button class="chip-btn active" data-status="all">전체</button>
-      <button class="chip-btn" data-status="reorder_urgent">긴급 재주문</button>
-      <button class="chip-btn" data-status="reorder_soon">재주문 임박</button>
-      <button class="chip-btn" data-status="overstock">과잉 재고</button>
-      <button class="chip-btn" data-status="expiring">유통기한 임박</button>
+      <div class="pill-group">
+        <button class="chip-btn active" data-status="all">전체</button>
+        <button class="chip-btn" data-status="reorder_urgent">긴급 재주문</button>
+        <button class="chip-btn" data-status="reorder_soon">재주문 임박</button>
+        <button class="chip-btn" data-status="overstock">과잉 재고</button>
+        <button class="chip-btn" data-status="expiring">유통기한 임박</button>
+      </div>
       <div class="filter-spacer"></div>
       <select id="invLineFilter"><option value="">전체 라인</option>${lines.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("")}</select>
       <input type="text" id="invSearch" class="search-input" placeholder="품목명 검색...">
@@ -218,7 +220,7 @@ function renderInventoryTable(wrap, rows, velocityMap, effMap, state, onSort) {
         const drift = effQty - (Number(r.total_qty) || 0);
         return `<tr>
           <td>${escapeHtml(r.line_category || "-")}</td>
-          <td style="white-space:normal;min-width:180px">${escapeHtml(r.item_name)}</td>
+          <td style="white-space:normal;min-width:180px"><span class="clickable-row item-detail-link" data-item="${escapeHtml(r.item_name)}" style="text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px" title="클릭하면 관련 매출 내역을 볼 수 있어요">${escapeHtml(r.item_name)}</span></td>
           <td class="num">${fmtNum(effQty)}${drift !== 0 ? `<span class="text-faint" style="font-size:11px"> (${drift > 0 ? "+" : ""}${fmtNum(drift)})</span>` : ""}</td>
           <td class="num">${fmtNum(r.hq_qty)}</td>
           <td class="num">${fmtNum(r.saeseoul_qty)}</td>
@@ -243,10 +245,20 @@ function renderInventoryTable(wrap, rows, velocityMap, effMap, state, onSort) {
     });
   });
   wrap.querySelectorAll(".quick-tx-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       AppState.invTab = "tx";
       AppState.invTxPrefillItem = btn.dataset.item;
       renderInventory(document.getElementById("viewContainer"));
+    });
+  });
+  wrap.querySelectorAll(".item-detail-link").forEach(el => {
+    el.addEventListener("click", () => {
+      const itemName = el.dataset.item;
+      const matchMap = buildInventorySalesMatch(Store.sales, Store.inventory);
+      const matchedNames = matchMap[itemName] || [];
+      const detail = Store.sales.filter(r => matchedNames.includes(r.item_name));
+      openSalesDetailModal(itemName, detail, { subtitle: detail.length ? "관련 매출 전체 기간 (품목명 자동 매칭)" : "매출 이력에서 자동 매칭되는 거래가 없습니다" });
     });
   });
 }

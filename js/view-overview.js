@@ -18,10 +18,12 @@ function renderOverview(container) {
     </div>
 
     <div class="filter-bar" id="ovFilterBar">
-      <button class="chip-btn" data-preset="thisYear">올해</button>
-      <button class="chip-btn" data-preset="lastYear">작년</button>
-      <button class="chip-btn" data-preset="last12m">최근 12개월</button>
-      <button class="chip-btn" data-preset="all">전체 기간</button>
+      <div class="pill-group">
+        <button class="chip-btn" data-preset="thisYear">올해</button>
+        <button class="chip-btn" data-preset="lastYear">작년</button>
+        <button class="chip-btn" data-preset="last12m">최근 12개월</button>
+        <button class="chip-btn" data-preset="all">전체 기간</button>
+      </div>
       <div class="filter-spacer"></div>
       <span class="text-mute" style="font-size:12.5px;font-weight:600">조회 기간</span>
       ${buildYearMonthPicker("ovStart", range.start)}
@@ -65,10 +67,10 @@ function renderOverview(container) {
   `;
 
   wireRangeControls(container, range, (r) => { AppState.overviewRange = r; renderOverview(container); });
-  renderRecentMonthCard(document.getElementById("ovRecentMonth"), recent);
+  renderRecentMonthCard(document.getElementById("ovRecentMonth"), recent, sales);
 
   const kpi = computeOverviewKPIs(sales, range);
-  renderKpiGrid(document.getElementById("ovKpiGrid"), kpi, range);
+  renderKpiGrid(document.getElementById("ovKpiGrid"), kpi, range, sales);
 
   const spanYear = parseInt(range.end.slice(0, 4), 10);
   renderMonthlyBarLine("ovMonthlyChart", computeMonthlySeries(sales, spanYear), spanYear);
@@ -81,7 +83,7 @@ function renderOverview(container) {
 
   const prevRange = shiftRangeOneYearBack(range.start, range.end);
   const ranking = computeProductRanking(sales, range, prevRange);
-  renderRankingTable(document.getElementById("ovRankTableWrap"), ranking);
+  renderRankingTable(document.getElementById("ovRankTableWrap"), ranking, sales, range);
 }
 
 function latestDataDate() {
@@ -154,7 +156,7 @@ function deltaTag(pct) {
   return `<span class="tag tag-gray">- ${fmtPct(pct)}</span>`;
 }
 
-function renderKpiGrid(el, kpi, range) {
+function renderKpiGrid(el, kpi, range, sales) {
   el.innerHTML = `
     <div class="card kpi-card">
       <div class="kpi-label">누계 매출 (전년 동기 대비)</div>
@@ -171,12 +173,18 @@ function renderKpiGrid(el, kpi, range) {
       <div class="kpi-value">${fmtNum(kpi.totalQty)}개</div>
       <div class="kpi-sub">${deltaTag(kpi.qtyYoy)}</div>
     </div>
-    <div class="card kpi-card">
-      <div class="kpi-label">1위 제품</div>
+    <div class="card kpi-card ${kpi.topProduct ? "clickable-row" : ""}" id="ovTopProductCard" title="${kpi.topProduct ? "클릭하면 상세 거래내역을 볼 수 있어요" : ""}">
+      <div class="kpi-label">1위 제품 ${kpi.topProduct ? '<span class="text-faint" style="font-weight:400">🔍 상세</span>' : ""}</div>
       <div class="kpi-value" style="font-size:16px">${kpi.topProduct ? escapeHtml(kpi.topProduct.key) : "-"}</div>
       <div class="kpi-sub">${kpi.topProduct ? fmtWon(kpi.topProduct.revenue) + " · 취급 " + kpi.productCount + "종" : ""}</div>
     </div>
   `;
+  if (kpi.topProduct) {
+    document.getElementById("ovTopProductCard").addEventListener("click", () => {
+      const rows = filterByRange(sales, range.start, range.end).filter(r => r.item_name === kpi.topProduct.key);
+      openSalesDetailModal(kpi.topProduct.key, rows, { subtitle: `${range.start} ~ ${range.end}` });
+    });
+  }
 }
 
 function renderCustomerConcentration(el, cust) {
@@ -204,14 +212,14 @@ function renderCustomerConcentration(el, cust) {
   `;
 }
 
-function renderRecentMonthCard(el, recent) {
+function renderRecentMonthCard(el, recent, sales) {
   if (!recent.dealCount) { el.innerHTML = '<div class="empty-note">해당 월 데이터가 없습니다</div>'; return; }
   el.innerHTML = `
     <div class="kpi-value" style="font-size:22px">${fmtWon(recent.curRevenue)}</div>
     <div class="kpi-sub" style="margin-bottom:14px">${deltaTag(recent.momGrowth)} 전월 대비 · ${deltaTag(recent.yoyGrowth)} 전년동월 대비</div>
-    <div style="font-size:12px;color:var(--text-mute);font-weight:600;margin-bottom:6px">품목별 매출 (상위 5)</div>
+    <div style="font-size:12px;color:var(--text-mute);font-weight:600;margin-bottom:6px">품목별 매출 (상위 5) <span class="text-faint" style="font-weight:400">클릭 시 상세</span></div>
     ${recent.products.map(p => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f1f4;font-size:12.5px">
+      <div class="clickable-row recent-product-row" data-item="${escapeHtml(p.key)}" style="display:flex;justify-content:space-between;align-items:center;padding:6px 4px;border-bottom:1px solid #f0f1f4;font-size:12.5px;border-radius:6px">
         <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${escapeHtml(p.key)}</span>
         <span style="display:flex;gap:8px;align-items:center">
           <span class="text-faint">${fmtPct(p.share, { digits: 0 })}</span>
@@ -221,16 +229,23 @@ function renderRecentMonthCard(el, recent) {
     `).join("")}
     <div class="text-faint" style="font-size:11.5px;margin-top:10px">거래 ${fmtNum(recent.dealCount)}건</div>
   `;
+  el.querySelectorAll(".recent-product-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const item = row.dataset.item;
+      const rows = sales.filter(r => monthKey(r.sale_date) === recent.mKey && r.item_name === item);
+      openSalesDetailModal(item, rows, { subtitle: recent.monthLabel });
+    });
+  });
 }
 
 const ABC_CLASS_TAG = { A: "tag-green", B: "tag-amber", C: "tag-gray" };
 
-function renderRankingTable(el, ranking) {
+function renderRankingTable(el, ranking, sales, range) {
   if (!ranking.length) { el.innerHTML = '<div class="empty-note">데이터가 없습니다</div>'; return; }
   const rows = ranking.slice(0, 15).map(r => {
     const cls = computeABCClass(r.cumShare);
     return `
-    <tr>
+    <tr class="clickable-row" data-item="${escapeHtml(r.key)}" title="클릭하면 상세 거래내역을 볼 수 있어요">
       <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
       <td>${escapeHtml(r.key)}</td>
       <td><span class="tag ${ABC_CLASS_TAG[cls]}">${cls}</span></td>
@@ -251,6 +266,15 @@ function renderRankingTable(el, ranking) {
       <tbody>${rows}</tbody>
     </table>
   `;
+  if (sales && range) {
+    el.querySelectorAll("tr.clickable-row").forEach(tr => {
+      tr.addEventListener("click", () => {
+        const item = tr.dataset.item;
+        const rows = filterByRange(sales, range.start, range.end).filter(r => r.item_name === item);
+        openSalesDetailModal(item, rows, { subtitle: `${range.start} ~ ${range.end}` });
+      });
+    });
+  }
 }
 
 function escapeHtml(s) {
