@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>원메디코 경영 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-logo">WM</div>
+      <div>
+        <div class="login-title">원메디코 경영 대시보드</div>
+        <div class="login-sub">임직원 전용 · 로그인 후 이용 가능합니다</div>
+      </div>
+    </div>
+    <form id="loginForm" class="login-form">
+      <label>이메일
+        <input type="email" id="loginEmail" required autocomplete="username" placeholder="name@company.com">
+      </label>
+      <label>비밀번호
+        <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="비밀번호">
+      </label>
+      <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn">로그인</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+    <div class="login-footnote">계정이 없으신가요? 관리자에게 계정 생성을 요청해주세요.</div>
+  </div>
+</div>
+
+<!-- ===== APP SHELL ===== -->
+<div id="appShell" class="app-shell hidden">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">WM</div>
+      <div class="brand-text">
+        <div class="brand-name">원메디코</div>
+        <div class="brand-sub">경영 대시보드</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">매출현황</div>
+      <button class="nav-item" data-view="overview">
+        <span class="nav-icon">◧</span> 종합
+      </button>
+      <button class="nav-item" data-view="sales">
+        <span class="nav-icon">◨</span> 매출 분석
+      </button>
+
+      <div class="nav-section-label">재고관리</div>
+      <button class="nav-item" data-view="inventory">
+        <span class="nav-icon">▤</span> 재고현황
+      </button>
+
+      <div class="nav-section-label admin-only hidden">관리</div>
+      <button class="nav-item admin-only hidden" data-view="upload">
+        <span class="nav-icon">⇪</span> 데이터 업로드
+      </button>
+      <button class="nav-item admin-only hidden" data-view="admin">
+        <span class="nav-icon">⚙</span> 계정 관리
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-meta">
+          <div class="user-email" id="userEmailLabel">-</div>
+          <div class="user-role" id="userRoleLabel">뷰어</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-block" id="logoutBtn">로그아웃</button>
+    </div>
+  </aside>
+
+  <main class="main-area">
+    <header class="topbar">
+      <div class="topbar-title" id="viewTitle">종합 현황</div>
+      <div class="topbar-actions">
+        <span class="data-updated" id="dataUpdatedLabel"></span>
+        <button class="btn btn-ghost" id="refreshBtn" title="데이터 새로고침">↻ 새로고침</button>
+      </div>
+    </header>
+    <div class="view-container" id="viewContainer">
+      <div class="loading-block">불러오는 중...</div>
+    </div>
+  </main>
+</div>
+
+<script src="js/supabase-client.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/view-overview.js"></script>
+<script src="js/view-sales.js"></script>
+<script src="js/view-inventory.js"></script>
+<script src="js/view-upload.js"></script>
+<script src="js/view-admin.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
