@@ -362,6 +362,10 @@ function computeReorderSuggestions(inventory, effectiveQtyMap, settingsMap, velo
       reorderPoint = v.dailyRate * leadTime + safety;
       targetStock = v.dailyRate * (leadTime + 30) + safety;
       basis = "판매속도 자동계산";
+    } else if (eff <= 0) {
+      reorderPoint = 0;
+      targetStock = Number(inv.production_qty) > 0 ? Number(inv.production_qty) : 10;
+      basis = "재고 소진 (판매 데이터 부족)";
     } else {
       continue;
     }
