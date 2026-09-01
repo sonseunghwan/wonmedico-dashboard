@@ -65,17 +65,24 @@ function renderOverview(container) {
   renderRankingTable(document.getElementById("ovRankTableWrap"), ranking);
 }
 
+function latestDataDate() {
+  if (!Store.sales.length) return new Date();
+  let max = Store.sales[0].sale_date;
+  for (const r of Store.sales) if (r.sale_date > max) max = r.sale_date;
+  return new Date(max);
+}
+
 function defaultYearRange() {
-  const now = new Date();
-  const y = now.getFullYear();
-  return { start: `${y}-01-01`, end: fmtDate(now) };
+  const latest = latestDataDate();
+  const y = latest.getFullYear();
+  return { start: `${y}-01-01`, end: fmtDate(latest) };
 }
 
 function wireRangeControls(container, range, onChange) {
   const bar = container.querySelector(".filter-bar");
   bar.querySelectorAll(".chip-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      const now = new Date();
+      const now = latestDataDate();
       const y = now.getFullYear();
       let r;
       if (btn.dataset.preset === "thisYear") r = { start: `${y}-01-01`, end: fmtDate(now) };
