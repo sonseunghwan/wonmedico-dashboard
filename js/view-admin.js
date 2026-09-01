@@ -55,7 +55,8 @@ async function loadUserTable() {
           <td>${escapeHtml(u.email)}</td>
           <td>${u.is_admin ? '<span class="badge-admin">관리자</span>' : '<span class="badge-viewer">뷰어</span>'}</td>
           <td>${fmtDate(u.created_at)}</td>
-          <td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-sm reset-pw-btn" data-id="${u.id}" data-email="${escapeHtml(u.email)}">비번 재설정</button>
             ${u.id !== Store.session.user.id ? `
               <button class="btn btn-sm toggle-admin-btn" data-id="${u.id}" data-cur="${u.is_admin}">${u.is_admin ? "권한 해제" : "관리자 지정"}</button>
               <button class="btn btn-sm btn-danger del-user-btn" data-id="${u.id}" data-email="${escapeHtml(u.email)}">삭제</button>
@@ -76,6 +77,9 @@ async function loadUserTable() {
       } catch (err) { toast(err.message, "error"); btn.disabled = false; }
     });
   });
+  wrap.querySelectorAll(".reset-pw-btn").forEach(btn => {
+    btn.addEventListener("click", () => openResetPasswordModal(btn.dataset.id, btn.dataset.email));
+  });
   wrap.querySelectorAll(".del-user-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       if (!confirm(`${btn.dataset.email} 계정을 삭제할까요?`)) return;
@@ -86,5 +90,43 @@ async function loadUserTable() {
         await loadUserTable();
       } catch (err) { toast(err.message, "error"); btn.disabled = false; }
     });
+  });
+}
+
+function openResetPasswordModal(targetId, email) {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-card" style="max-width:380px">
+      <div class="modal-title">비밀번호 재설정</div>
+      <div class="text-mute" style="font-size:12.5px;margin-bottom:14px">${escapeHtml(email)} 계정의 새 비밀번호를 설정합니다.</div>
+      <form id="resetPwForm">
+        <label class="modal-label">새 비밀번호<input type="text" id="resetPwInput" required minlength="8" placeholder="8자 이상"></label>
+        <div class="modal-error" id="resetPwError"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="resetPwCancelBtn">취소</button>
+          <button type="submit" class="btn btn-primary">재설정</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById("resetPwCancelBtn").addEventListener("click", () => overlay.remove());
+  document.getElementById("resetPwForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const password = document.getElementById("resetPwInput").value;
+    const errEl = document.getElementById("resetPwError");
+    const btn = e.target.querySelector("button[type=submit]");
+    errEl.textContent = "";
+    btn.disabled = true; btn.textContent = "처리 중...";
+    try {
+      await callAdminFn({ action: "reset_password", target_id: targetId, password });
+      toast(`${email} 비밀번호가 재설정되었습니다.`, "success");
+      overlay.remove();
+    } catch (err) {
+      errEl.textContent = err.message;
+      btn.disabled = false; btn.textContent = "재설정";
+    }
   });
 }

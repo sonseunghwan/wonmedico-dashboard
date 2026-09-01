@@ -83,20 +83,20 @@ function exportSalesTableCsv(tab, sales, range, prevRange, term) {
     let rows = computeProductRanking(sales, range, prevRange);
     if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
     exportCsv(`매출_제품별_${range.start}_${range.end}.csv`,
-      ["순위", "품목", "매출", "비중(%)", "판매수량", "평균단가", "전년동기대비(%)"],
-      rows.map(r => [r.rank, r.key, Math.round(r.revenue), r.share.toFixed(1), r.qty, Math.round(r.avgPrice), r.growth === null ? "" : r.growth.toFixed(1)]));
+      ["순위", "품목", "올해매출", "작년매출", "매출증감(%)", "비중(%)", "올해수량", "작년수량", "수량증감(%)", "평균단가"],
+      rows.map(r => [r.rank, r.key, Math.round(r.revenue), Math.round(r.prevRevenue), r.growth === null ? "" : r.growth.toFixed(1), r.share.toFixed(1), r.qty, r.prevQty, r.qtyGrowth === null ? "" : r.qtyGrowth.toFixed(1), Math.round(r.avgPrice)]));
   } else if (tab === "customer") {
-    let rows = computeCustomerAnalysis(sales, range).ranking;
+    let rows = computeCustomerAnalysis(sales, range, prevRange).ranking;
     if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
     exportCsv(`매출_거래처별_${range.start}_${range.end}.csv`,
-      ["순위", "거래처", "매출", "비중(%)", "거래건수", "건당평균"],
-      rows.map(r => [r.rank, r.key, Math.round(r.revenue), r.share.toFixed(1), r.count, Math.round(r.count > 0 ? r.revenue / r.count : 0)]));
+      ["순위", "거래처", "올해매출", "작년매출", "매출증감(%)", "비중(%)", "거래건수", "건당평균"],
+      rows.map(r => [r.rank, r.key, Math.round(r.revenue), Math.round(r.prevRevenue), r.growth === null ? "" : r.growth.toFixed(1), r.share.toFixed(1), r.count, Math.round(r.count > 0 ? r.revenue / r.count : 0)]));
   } else {
-    let rows = computeManagerPerformance(sales, range);
+    let rows = computeManagerPerformance(sales, range, prevRange);
     if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
     exportCsv(`매출_담당자별_${range.start}_${range.end}.csv`,
-      ["순위", "담당자", "매출", "비중(%)", "거래건수", "건당평균"],
-      rows.map(r => [r.rank, r.key, Math.round(r.revenue), r.share.toFixed(1), r.count, Math.round(r.avgDeal)]));
+      ["순위", "담당자", "올해매출", "작년매출", "매출증감(%)", "비중(%)", "거래건수", "건당평균"],
+      rows.map(r => [r.rank, r.key, Math.round(r.revenue), Math.round(r.prevRevenue), r.growth === null ? "" : r.growth.toFixed(1), r.share.toFixed(1), r.count, Math.round(r.avgDeal)]));
   }
 }
 
@@ -142,8 +142,9 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
     wrap.innerHTML = `
       <table class="data-table">
         <thead><tr>
-          <th>순위</th><th>품목</th><th title="누적매출 80%=A, 95%=B, 나머지=C">등급</th><th class="num">매출</th><th class="num">비중</th><th class="num">누적비중</th>
-          <th class="num">판매수량</th><th class="num">평균단가</th><th class="num">전년동기</th>
+          <th>순위</th><th>품목</th><th title="누적매출 80%=A, 95%=B, 나머지=C">등급</th>
+          <th class="num">올해 매출</th><th class="num">작년 매출</th><th class="num">매출 증감</th><th class="num">비중</th><th class="num">누적비중</th>
+          <th class="num">올해 수량</th><th class="num">작년 수량</th><th class="num">수량 증감</th><th class="num">평균단가</th>
         </tr></thead>
         <tbody>${rows.map(r => `
           <tr class="clickable-row" data-item="${escapeHtml(r.key)}">
@@ -151,11 +152,14 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
             <td>${escapeHtml(r.key)}</td>
             <td><span class="tag ${ABC_CLASS_TAG[computeABCClass(r.cumShare)]}">${computeABCClass(r.cumShare)}</span></td>
             <td class="num">${fmtWon(r.revenue)}</td>
+            <td class="num text-faint">${fmtWon(r.prevRevenue)}</td>
+            <td class="num">${deltaTag(r.growth)}</td>
             <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
             <td class="num text-faint">${fmtPct(r.cumShare, { digits: 0 })}</td>
-            <td class="num">${fmtNum(r.qty)}</td>
+            <td class="num">${fmtNum(r.qty)}개</td>
+            <td class="num text-faint">${fmtNum(r.prevQty)}개</td>
+            <td class="num">${deltaTag(r.qtyGrowth)}</td>
             <td class="num">${fmtWon(r.avgPrice)}</td>
-            <td class="num">${deltaTag(r.growth)}</td>
           </tr>`).join("")}
         </tbody>
       </table>`;
@@ -167,18 +171,20 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
       });
     });
   } else if (tab === "customer") {
-    let cust = computeCustomerAnalysis(sales, range);
+    let cust = computeCustomerAnalysis(sales, range, prevRange);
     let rows = cust.ranking;
     if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
     const lastPurchaseMap = computeCustomerLastPurchase(sales);
     wrap.innerHTML = `
       <table class="data-table">
-        <thead><tr><th>순위</th><th>거래처</th><th class="num">매출</th><th class="num">비중</th><th class="num">거래건수</th><th class="num">건당 평균</th><th>최근 구매일</th></tr></thead>
+        <thead><tr><th>순위</th><th>거래처</th><th class="num">올해 매출</th><th class="num">작년 매출</th><th class="num">증감</th><th class="num">비중</th><th class="num">거래건수</th><th class="num">건당 평균</th><th>최근 구매일</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr class="clickable-row" data-item="${escapeHtml(r.key)}">
             <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
             <td>${escapeHtml(r.key)}</td>
             <td class="num">${fmtWon(r.revenue)}</td>
+            <td class="num text-faint">${fmtWon(r.prevRevenue)}</td>
+            <td class="num">${deltaTag(r.growth)}</td>
             <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
             <td class="num">${fmtNum(r.count)}</td>
             <td class="num">${fmtWon(r.count > 0 ? r.revenue / r.count : 0)}</td>
@@ -194,16 +200,18 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
       });
     });
   } else {
-    let rows = computeManagerPerformance(sales, range);
+    let rows = computeManagerPerformance(sales, range, prevRange);
     if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
     wrap.innerHTML = `
       <table class="data-table">
-        <thead><tr><th>순위</th><th>담당자</th><th class="num">매출</th><th class="num">비중</th><th class="num">거래건수</th><th class="num">건당 평균</th></tr></thead>
+        <thead><tr><th>순위</th><th>담당자</th><th class="num">올해 매출</th><th class="num">작년 매출</th><th class="num">증감</th><th class="num">비중</th><th class="num">거래건수</th><th class="num">건당 평균</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr class="clickable-row" data-item="${escapeHtml(r.key)}">
             <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
             <td>${escapeHtml(r.key)}</td>
             <td class="num">${fmtWon(r.revenue)}</td>
+            <td class="num text-faint">${fmtWon(r.prevRevenue)}</td>
+            <td class="num">${deltaTag(r.growth)}</td>
             <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
             <td class="num">${fmtNum(r.count)}</td>
             <td class="num">${fmtWon(r.avgDeal)}</td>

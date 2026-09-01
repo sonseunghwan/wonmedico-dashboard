@@ -249,19 +249,20 @@ function renderRankingTable(el, ranking, sales, range) {
       <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
       <td>${escapeHtml(r.key)}</td>
       <td><span class="tag ${ABC_CLASS_TAG[cls]}">${cls}</span></td>
-      <td class="num">${fmtWon(r.revenue)}</td>
-      <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
-      <td class="num">${fmtNum(r.qty)}</td>
-      <td class="num">${fmtWon(r.avgPrice)}</td>
+      <td class="num">${fmtWon(r.revenue)}<div class="text-faint" style="font-size:11px">전년 ${fmtWon(r.prevRevenue)}</div></td>
       <td class="num">${deltaTag(r.growth)}</td>
+      <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
+      <td class="num">${fmtNum(r.qty)}개<div class="text-faint" style="font-size:11px">전년 ${fmtNum(r.prevQty)}개</div></td>
+      <td class="num">${deltaTag(r.qtyGrowth)}</td>
     </tr>
   `;
   }).join("");
   el.innerHTML = `
     <table class="data-table">
       <thead><tr>
-        <th>순위</th><th>품목</th><th title="누적매출 80%=A, 95%=B, 나머지=C">등급</th><th class="num">매출</th><th class="num">비중</th>
-        <th class="num">판매수량</th><th class="num">평균단가</th><th class="num">전년동기 대비</th>
+        <th>순위</th><th>품목</th><th title="누적매출 80%=A, 95%=B, 나머지=C">등급</th>
+        <th class="num">매출 (전년)</th><th class="num">매출 증감</th><th class="num">비중</th>
+        <th class="num">수량 (전년)</th><th class="num">수량 증감</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>

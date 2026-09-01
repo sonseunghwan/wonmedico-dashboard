@@ -154,16 +154,21 @@ function computeProductRanking(sales, range, prevRange) {
   return curG.map((g, i) => {
     const p = prevMap.get(g.key);
     const growth = p && p.revenue > 0 ? ((g.revenue - p.revenue) / p.revenue) * 100 : null;
+    const qtyGrowth = p && p.qty > 0 ? ((g.qty - p.qty) / p.qty) * 100 : null;
     const share = totalRevenue > 0 ? (g.revenue / totalRevenue) * 100 : 0;
     cum += share;
-    return { rank: i + 1, ...g, growth, share, cumShare: cum, avgPrice: g.qty > 0 ? g.revenue / g.qty : 0 };
+    return {
+      rank: i + 1, ...g, growth, qtyGrowth, share, cumShare: cum, avgPrice: g.qty > 0 ? g.revenue / g.qty : 0,
+      prevRevenue: p ? p.revenue : 0, prevQty: p ? p.qty : 0
+    };
   });
 }
 
-function computeCustomerAnalysis(sales, range) {
+function computeCustomerAnalysis(sales, range, prevRange) {
   const cur = filterByRange(sales, range.start, range.end);
   const g = groupSum(cur, "customer");
   const totalRevenue = sumAmount(cur);
+  const prevMap = prevRange ? new Map(groupSum(filterByRange(sales, prevRange.start, prevRange.end), "customer").map(x => [x.key, x])) : new Map();
 
   const firstSeen = new Map();
   for (const r of sales) {
@@ -181,21 +186,31 @@ function computeCustomerAnalysis(sales, range) {
   const top10Share = totalRevenue > 0 ? (sumAmount2(g.slice(0, 10)) / totalRevenue) * 100 : 0;
 
   return {
-    ranking: g.map((row, i) => ({ rank: i + 1, ...row, share: totalRevenue > 0 ? (row.revenue / totalRevenue) * 100 : 0 })),
+    ranking: g.map((row, i) => {
+      const p = prevMap.get(row.key);
+      const growth = p && p.revenue > 0 ? ((row.revenue - p.revenue) / p.revenue) * 100 : null;
+      return { rank: i + 1, ...row, share: totalRevenue > 0 ? (row.revenue / totalRevenue) * 100 : 0, prevRevenue: p ? p.revenue : 0, growth };
+    }),
     totalRevenue, top5Share, top10Share, newRevenue, repeatRevenue,
     customerCount: g.length
   };
 }
 function sumAmount2(groups) { return groups.reduce((a, g) => a + g.revenue, 0); }
 
-function computeManagerPerformance(sales, range) {
+function computeManagerPerformance(sales, range, prevRange) {
   const cur = filterByRange(sales, range.start, range.end);
   const totalRevenue = sumAmount(cur);
-  return groupSum(cur, "manager").map((g, i) => ({
-    rank: i + 1, ...g,
-    share: totalRevenue > 0 ? (g.revenue / totalRevenue) * 100 : 0,
-    avgDeal: g.count > 0 ? g.revenue / g.count : 0
-  }));
+  const prevMap = prevRange ? new Map(groupSum(filterByRange(sales, prevRange.start, prevRange.end), "manager").map(x => [x.key, x])) : new Map();
+  return groupSum(cur, "manager").map((g, i) => {
+    const p = prevMap.get(g.key);
+    const growth = p && p.revenue > 0 ? ((g.revenue - p.revenue) / p.revenue) * 100 : null;
+    return {
+      rank: i + 1, ...g,
+      share: totalRevenue > 0 ? (g.revenue / totalRevenue) * 100 : 0,
+      avgDeal: g.count > 0 ? g.revenue / g.count : 0,
+      prevRevenue: p ? p.revenue : 0, growth
+    };
+  });
 }
 
 function computeBrandBreakdown(sales, range) {
