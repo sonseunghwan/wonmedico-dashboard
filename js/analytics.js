@@ -348,7 +348,7 @@ function computeReorderSuggestions(inventory, effectiveQtyMap, settingsMap, velo
   const velocityMap = new Map(velocity.map(v => [v.item.item_name, v]));
   const out = [];
   for (const inv of inventory) {
-    const eff = effectiveQtyMap.get(inv.item_name) ?? Number(inv.total_qty) || 0;
+    const eff = effectiveQtyMap.get(inv.item_name) ?? (Number(inv.total_qty) || 0);
     const setting = settingsMap.get(inv.item_name);
     const v = velocityMap.get(inv.item_name);
     let reorderPoint, targetStock, basis;
