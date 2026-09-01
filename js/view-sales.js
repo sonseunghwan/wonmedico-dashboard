@@ -65,8 +65,8 @@ function renderSales(container) {
 
 function renderMovers(el, ranking) {
   const eligible = ranking.filter(r => r.revenue >= 5000000 && r.growth !== null);
-  const gainers = [...eligible].sort((a, b) => b.growth - a.growth).slice(0, 5);
-  const losers = [...eligible].sort((a, b) => a.growth - b.growth).slice(0, 5);
+  const gainers = [...eligible].filter(r => r.growth > 0).sort((a, b) => b.growth - a.growth).slice(0, 5);
+  const losers = [...eligible].filter(r => r.growth < 0).sort((a, b) => a.growth - b.growth).slice(0, 5);
   const row = (r) => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f1f4">
       <div style="min-width:0">

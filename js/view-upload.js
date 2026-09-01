@@ -183,13 +183,19 @@ async function handleInventoryUpload(file, logId) {
       }
     }
 
-    logTo(logId, `현재 재고(${latest.date}) 반영 중... (${currentRows.length}개 품목)`);
-    const { error: delErr } = await sb.from("inventory_current").delete().neq("id", 0);
-    if (delErr) { logTo(logId, "초기화 오류: " + delErr.message); return; }
-    for (let i = 0; i < currentRows.length; i += 500) {
-      const chunk = currentRows.slice(i, i + 500);
-      const { error } = await sb.from("inventory_current").upsert(chunk, { onConflict: "item_name" });
-      if (error) { logTo(logId, "현재고 업로드 오류: " + error.message); return; }
+    const { data: existingCurrent } = await sb.from("inventory_current").select("snapshot_date").limit(1);
+    const existingDate = existingCurrent && existingCurrent[0] ? existingCurrent[0].snapshot_date : null;
+    if (existingDate && latest.date < existingDate) {
+      logTo(logId, `건너뜀: 업로드된 파일의 최신 시트(${latest.date})가 현재 반영된 재고 기준일(${existingDate})보다 오래되었습니다. 현재고는 변경하지 않았습니다.`);
+    } else {
+      logTo(logId, `현재 재고(${latest.date}) 반영 중... (${currentRows.length}개 품목)`);
+      const { error: delErr } = await sb.from("inventory_current").delete().neq("id", 0);
+      if (delErr) { logTo(logId, "초기화 오류: " + delErr.message); return; }
+      for (let i = 0; i < currentRows.length; i += 500) {
+        const chunk = currentRows.slice(i, i + 500);
+        const { error } = await sb.from("inventory_current").upsert(chunk, { onConflict: "item_name" });
+        if (error) { logTo(logId, "현재고 업로드 오류: " + error.message); return; }
+      }
     }
     logTo(logId, "완료.");
     toast("재고 데이터 업로드 완료", "success");
