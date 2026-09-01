@@ -240,6 +240,16 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px}
 }
 .lost-products-note b{color:var(--text)}
 
+.exec-insight-card{margin-bottom:16px}
+.insight-list{display:flex;flex-direction:column;gap:2px;margin-top:8px}
+.insight-item{display:flex;align-items:flex-start;gap:10px;padding:8px 4px;font-size:13px;line-height:1.5;border-bottom:1px solid #f0f1f4}
+.insight-item:last-child{border-bottom:none}
+.insight-icon{flex:0 0 auto;font-size:11px;font-weight:800;width:16px;text-align:center;margin-top:2px}
+.insight-good .insight-icon{color:var(--green)}
+.insight-bad .insight-icon{color:var(--red)}
+.insight-warn .insight-icon{color:var(--amber)}
+.insight-neutral .insight-icon{color:var(--text-faint)}
+
 .snapshot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 @media(max-width:900px){.snapshot-grid{grid-template-columns:repeat(2,1fr)}}
 .snapshot-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}

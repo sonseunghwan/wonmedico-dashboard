@@ -488,3 +488,51 @@ function computeInventoryKPIs(inventory, sales) {
 
   return { totalItems, totalQty, hq, saeseoul, daejeon, expiringSoon, expired, valuation, valuedCount, priceMap };
 }
+
+// ---------- executive insight summary (overview page) ----------
+
+function computeExecInsights(sales, inventory, range) {
+  const prevRange = shiftRangeOneYearBack(range.start, range.end);
+  const kpi = computeOverviewKPIs(sales, range);
+  const ranking = computeProductRanking(sales, range, prevRange);
+  const lost = computeLostProducts(sales, range, prevRange);
+  const cust = computeCustomerAnalysis(sales, range, prevRange);
+  const velocity = inventory.length ? computeInventoryVelocity(inventory, sales, 90) : [];
+  const urgentCount = velocity.filter(v => v.status === "reorder_urgent").length;
+  const noSaleCount = velocity.filter(v => v.status === "no_recent_sales" && (Number(v.item.total_qty) || 0) > 0).length;
+
+  const insights = [];
+
+  if (kpi.yoy !== null) {
+    insights.push({
+      tone: kpi.yoy >= 0 ? "good" : "bad",
+      text: `선택 기간 매출 ${fmtWon(kpi.curRevenue)} · 전년 동기 대비 ${kpi.yoy >= 0 ? "▲" : "▼"}${Math.abs(kpi.yoy).toFixed(1)}%`
+    });
+  } else {
+    insights.push({ tone: "neutral", text: `선택 기간 매출 ${fmtWon(kpi.curRevenue)} (비교할 전년 동기 데이터 없음)` });
+  }
+
+  const meaningful = ranking.filter(r => r.revenue >= 500000 && r.growth !== null);
+  const grown = meaningful.slice().sort((a, b) => b.growth - a.growth)[0];
+  const declined = meaningful.slice().sort((a, b) => a.growth - b.growth)[0];
+  if (grown && grown.growth > 20) insights.push({ tone: "good", text: `${grown.key} 매출 급성장 — 전년 대비 ▲${grown.growth.toFixed(1)}% (${fmtWon(grown.revenue)})` });
+  if (declined && declined.growth < -20 && declined.key !== grown?.key) insights.push({ tone: "bad", text: `${declined.key} 매출 급감 — 전년 대비 ▼${Math.abs(declined.growth).toFixed(1)}% (${fmtWon(declined.revenue)})` });
+
+  if (lost.length) {
+    const lostTotal = lost.reduce((a, g) => a + g.revenue, 0);
+    insights.push({ tone: "bad", text: `전년엔 팔렸으나 이번 기간엔 실적 없는 품목 ${lost.length}개 (전년 매출 합계 ${fmtWon(lostTotal)}) — 단종·재고소진 여부 확인 필요` });
+  }
+
+  if (cust.top5Share >= 50) {
+    insights.push({ tone: "warn", text: `상위 5개 거래처가 매출의 ${cust.top5Share.toFixed(1)}% 차지 — 거래처 편중 리스크` });
+  }
+
+  if (urgentCount > 0) insights.push({ tone: "bad", text: `재고 소진 임박(2주 이내) 품목 ${urgentCount}종 — 긴급 발주 검토 필요` });
+  if (noSaleCount > 0) insights.push({ tone: "warn", text: `최근 90일간 판매 없이 재고만 보유 중인 품목 ${noSaleCount}종 — 재고자산 회전 점검 필요` });
+
+  if (kpi.avgDeal > 0 && kpi.dealCount > 0) {
+    insights.push({ tone: "neutral", text: `거래 ${fmtNum(kpi.dealCount)}건 · 평균 거래단가 ${fmtWon(kpi.avgDeal)} · 활동 거래처 ${fmtNum(kpi.customerCount)}곳` });
+  }
+
+  return insights.slice(0, 6);
+}

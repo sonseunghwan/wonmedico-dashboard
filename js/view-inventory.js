@@ -231,7 +231,7 @@ function renderInventoryTable(wrap, rows, velocityMap, effMap, state, onSort) {
           <td class="num">${v ? fmtNum(v.soldQty90) : "-"}</td>
           <td class="num">${v && isFinite(v.daysOfStock) ? Math.round(v.daysOfStock) + "일" : (v && v.item.total_qty > 0 ? "∞" : "-")}</td>
           <td><span class="tag ${st.cls}">${st.label}</span></td>
-          <td><button class="btn btn-ghost btn-sm quick-tx-btn" data-item="${escapeHtml(r.item_name)}">입출고+</button></td>
+          <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm quick-tx-btn" data-item="${escapeHtml(r.item_name)}">입출고+</button><button class="btn btn-ghost btn-sm edit-item-btn" data-item="${escapeHtml(r.item_name)}">수정</button></td>
         </tr>`;
       }).join("")}</tbody>
     </table>
@@ -252,6 +252,13 @@ function renderInventoryTable(wrap, rows, velocityMap, effMap, state, onSort) {
       renderInventory(document.getElementById("viewContainer"));
     });
   });
+  wrap.querySelectorAll(".edit-item-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const row = Store.inventory.find(i => i.item_name === btn.dataset.item);
+      if (row) openAddItemModal(Store.inventory, row);
+    });
+  });
   wrap.querySelectorAll(".item-detail-link").forEach(el => {
     el.addEventListener("click", () => {
       const itemName = el.dataset.item;
@@ -263,27 +270,30 @@ function renderInventoryTable(wrap, rows, velocityMap, effMap, state, onSort) {
   });
 }
 
-function openAddItemModal(inventory) {
+function openAddItemModal(inventory, existing = null) {
+  const isEdit = !!existing;
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.innerHTML = `
     <div class="modal-card" style="max-width:440px">
-      <div class="modal-title">새 품목 추가</div>
+      <div class="modal-title">${isEdit ? `품목 정보 수정 — ${escapeHtml(existing.item_name)}` : "새 품목 추가"}</div>
+      ${isEdit ? '<div class="text-faint" style="font-size:12px;margin:-10px 0 12px">실사 결과에 맞게 창고별 수량 등을 직접 고칠 수 있습니다. 저장하면 스냅샷 기준값이 바로 갱신됩니다.</div>' : ""}
       <form id="addItemForm">
-        <label class="modal-label">품목명 *<input type="text" id="aiName" required></label>
-        <label class="modal-label">라인/카테고리<input type="text" id="aiLine"></label>
+        <label class="modal-label">품목명 *<input type="text" id="aiName" required ${isEdit ? "readonly" : ""} value="${isEdit ? escapeHtml(existing.item_name) : ""}"></label>
+        <label class="modal-label">라인/카테고리<input type="text" id="aiLine" value="${isEdit ? escapeHtml(existing.line_category || "") : ""}"></label>
         <div class="grid grid-3" style="margin-bottom:12px">
-          <label class="modal-label">본사<input type="number" id="aiHq" value="0"></label>
-          <label class="modal-label">새서울<input type="number" id="aiSaeseoul" value="0"></label>
-          <label class="modal-label">대전<input type="number" id="aiDaejeon" value="0"></label>
+          <label class="modal-label">본사<input type="number" id="aiHq" value="${isEdit ? (existing.hq_qty ?? 0) : 0}"></label>
+          <label class="modal-label">새서울<input type="number" id="aiSaeseoul" value="${isEdit ? (existing.saeseoul_qty ?? 0) : 0}"></label>
+          <label class="modal-label">대전<input type="number" id="aiDaejeon" value="${isEdit ? (existing.daejeon_qty ?? 0) : 0}"></label>
         </div>
-        <label class="modal-label">입고일<input type="date" id="aiReceived"></label>
-        <label class="modal-label">유통기한<input type="date" id="aiExpiry"></label>
-        <label class="modal-label">생산수량<input type="number" id="aiProduction" value="0"></label>
+        <label class="modal-label">입고일<input type="date" id="aiReceived" value="${isEdit ? (existing.received_date || "") : ""}"></label>
+        <label class="modal-label">유통기한<input type="date" id="aiExpiry" value="${isEdit ? (existing.expiry_date || "") : ""}"></label>
+        <label class="modal-label">생산수량<input type="number" id="aiProduction" value="${isEdit ? (existing.production_qty ?? 0) : 0}"></label>
         <div class="modal-error" id="aiError"></div>
         <div class="modal-actions">
+          ${isEdit ? '<button type="button" class="btn btn-ghost" id="aiDeleteBtn" style="margin-right:auto;color:var(--red)">품목 삭제</button>' : ""}
           <button type="button" class="btn btn-ghost" id="aiCancelBtn">취소</button>
-          <button type="submit" class="btn btn-primary">추가</button>
+          <button type="submit" class="btn btn-primary">${isEdit ? "저장" : "추가"}</button>
         </div>
       </form>
     </div>
@@ -291,21 +301,30 @@ function openAddItemModal(inventory) {
   document.body.appendChild(overlay);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
   document.getElementById("aiCancelBtn").addEventListener("click", () => overlay.remove());
+  document.getElementById("aiDeleteBtn")?.addEventListener("click", async () => {
+    if (!confirm(`'${existing.item_name}' 품목을 재고 목록에서 삭제할까요? 관련 입출고 기록은 유지됩니다.`)) return;
+    const { error } = await sb.from("inventory_current").delete().eq("item_name", existing.item_name);
+    if (error) { toast(error.message, "error"); return; }
+    overlay.remove();
+    toast("품목이 삭제되었습니다.", "success");
+    await loadAllData(true);
+    renderInventory(document.getElementById("viewContainer"));
+  });
   document.getElementById("addItemForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = document.getElementById("aiName").value.trim();
     const errEl = document.getElementById("aiError");
     if (!name) { errEl.textContent = "품목명을 입력해주세요."; return; }
-    if (inventory.some(i => i.item_name === name)) { errEl.textContent = "이미 존재하는 품목명입니다."; return; }
+    if (!isEdit && inventory.some(i => i.item_name === name)) { errEl.textContent = "이미 존재하는 품목명입니다."; return; }
     const hq = Number(document.getElementById("aiHq").value) || 0;
     const saeseoul = Number(document.getElementById("aiSaeseoul").value) || 0;
     const daejeon = Number(document.getElementById("aiDaejeon").value) || 0;
     const rec = {
-      snapshot_date: inventory[0]?.snapshot_date || fmtDate(new Date()),
+      snapshot_date: isEdit ? existing.snapshot_date : (inventory[0]?.snapshot_date || fmtDate(new Date())),
       line_category: document.getElementById("aiLine").value.trim() || null,
       item_name: name,
       total_qty: hq + saeseoul + daejeon,
-      hq_qty: hq, saeseoul_qty: saeseoul, daejeon_qty: daejeon, shipped_qty: 0,
+      hq_qty: hq, saeseoul_qty: saeseoul, daejeon_qty: daejeon, shipped_qty: isEdit ? (existing.shipped_qty ?? 0) : 0,
       received_date: document.getElementById("aiReceived").value || null,
       expiry_date: document.getElementById("aiExpiry").value || null,
       production_qty: Number(document.getElementById("aiProduction").value) || null
@@ -313,7 +332,7 @@ function openAddItemModal(inventory) {
     const { error } = await sb.from("inventory_current").upsert([rec], { onConflict: "item_name" });
     if (error) { errEl.textContent = error.message; return; }
     overlay.remove();
-    toast("품목이 추가되었습니다.", "success");
+    toast(isEdit ? "품목 정보가 수정되었습니다." : "품목이 추가되었습니다.", "success");
     await loadAllData(true);
     renderInventory(document.getElementById("viewContainer"));
   });

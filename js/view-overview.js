@@ -20,6 +20,11 @@ function renderOverview(container) {
       <div class="page-lede-meta">기준일 ${latestDataDate().toISOString().slice(0, 10)}<br>업로드 시 자동 갱신됩니다</div>
     </div>
 
+    <div class="card card-pad exec-insight-card">
+      <div class="chart-card-title" style="margin-bottom:2px">🧭 경영 인사이트 요약 <span class="text-faint" style="font-weight:400;font-size:11px">선택 기간 기준 자동 분석</span></div>
+      <div id="ovExecInsights" class="insight-list"></div>
+    </div>
+
     <div class="filter-bar" id="ovFilterBar">
       <span class="text-mute" style="font-size:12.5px;font-weight:600">📅 조회 기간</span>
       ${buildYearMonthPicker("ovStart", range.start)}
@@ -74,6 +79,7 @@ function renderOverview(container) {
   wireRangeControls(container, range, (r) => { AppState.overviewRange = r; renderOverview(container); });
   renderRecentMonthCard(document.getElementById("ovRecentMonth"), recent, sales);
   renderSnapshotGrid(document.getElementById("ovSnapshotGrid"), sales);
+  renderExecInsights(document.getElementById("ovExecInsights"), computeExecInsights(sales, Store.inventory, range));
 
   const kpi = computeOverviewKPIs(sales, range);
   renderKpiGrid(document.getElementById("ovKpiGrid"), kpi, range, sales);
@@ -242,6 +248,17 @@ function renderRecentMonthCard(el, recent, sales) {
       openSalesDetailModal(item, rows, { subtitle: recent.monthLabel });
     });
   });
+}
+
+const INSIGHT_TONE_ICON = { good: "▲", bad: "▼", warn: "⚠", neutral: "•" };
+function renderExecInsights(el, insights) {
+  if (!insights.length) { el.innerHTML = '<div class="empty-note">표시할 인사이트가 없습니다.</div>'; return; }
+  el.innerHTML = insights.map(ins => `
+    <div class="insight-item insight-${ins.tone}">
+      <span class="insight-icon">${INSIGHT_TONE_ICON[ins.tone] || "•"}</span>
+      <span>${escapeHtml(ins.text)}</span>
+    </div>
+  `).join("");
 }
 
 function renderSnapshotGrid(el, sales) {
