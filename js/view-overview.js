@@ -223,23 +223,29 @@ function renderRecentMonthCard(el, recent) {
   `;
 }
 
+const ABC_CLASS_TAG = { A: "tag-green", B: "tag-amber", C: "tag-gray" };
+
 function renderRankingTable(el, ranking) {
   if (!ranking.length) { el.innerHTML = '<div class="empty-note">데이터가 없습니다</div>'; return; }
-  const rows = ranking.slice(0, 15).map(r => `
+  const rows = ranking.slice(0, 15).map(r => {
+    const cls = computeABCClass(r.cumShare);
+    return `
     <tr>
       <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
       <td>${escapeHtml(r.key)}</td>
+      <td><span class="tag ${ABC_CLASS_TAG[cls]}">${cls}</span></td>
       <td class="num">${fmtWon(r.revenue)}</td>
       <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
       <td class="num">${fmtNum(r.qty)}</td>
       <td class="num">${fmtWon(r.avgPrice)}</td>
       <td class="num">${deltaTag(r.growth)}</td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
   el.innerHTML = `
     <table class="data-table">
       <thead><tr>
-        <th>순위</th><th>품목</th><th class="num">매출</th><th class="num">비중</th>
+        <th>순위</th><th>품목</th><th title="누적매출 80%=A, 95%=B, 나머지=C">등급</th><th class="num">매출</th><th class="num">비중</th>
         <th class="num">판매수량</th><th class="num">평균단가</th><th class="num">전년동기 대비</th>
       </tr></thead>
       <tbody>${rows}</tbody>

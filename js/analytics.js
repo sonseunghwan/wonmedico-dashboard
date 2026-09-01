@@ -319,6 +319,78 @@ function daysUntil(dateStr) {
   return daysBetween(new Date(new Date().toDateString()), d);
 }
 
+// ---------- inventory management (transactions, settings, reorder) ----------
+
+const TX_TYPE_SIGN = {
+  "입고": 1, "반품입고": 1, "조정(증가)": 1,
+  "출고": -1, "폐기": -1, "조정(감소)": -1
+};
+const TX_TYPES = Object.keys(TX_TYPE_SIGN);
+
+function computeEffectiveQtyMap(inventory, transactions) {
+  const map = new Map();
+  for (const inv of inventory) map.set(inv.item_name, Number(inv.total_qty) || 0);
+  for (const tx of transactions) {
+    const snap = inventory.find(i => i.item_name === tx.item_name);
+    if (snap && tx.tx_date < snap.snapshot_date) continue;
+    const sign = TX_TYPE_SIGN[tx.tx_type] ?? 0;
+    const cur = map.has(tx.item_name) ? map.get(tx.item_name) : 0;
+    map.set(tx.item_name, cur + sign * (Number(tx.qty) || 0));
+  }
+  return map;
+}
+
+function getItemSettingsMap(itemSettings) {
+  return new Map(itemSettings.map(s => [s.item_name, s]));
+}
+
+function computeReorderSuggestions(inventory, effectiveQtyMap, settingsMap, velocity) {
+  const velocityMap = new Map(velocity.map(v => [v.item.item_name, v]));
+  const out = [];
+  for (const inv of inventory) {
+    const eff = effectiveQtyMap.get(inv.item_name) ?? Number(inv.total_qty) || 0;
+    const setting = settingsMap.get(inv.item_name);
+    const v = velocityMap.get(inv.item_name);
+    let reorderPoint, targetStock, basis;
+    if (setting && setting.reorder_point !== null && setting.reorder_point !== undefined) {
+      reorderPoint = Number(setting.reorder_point);
+      targetStock = setting.target_stock !== null && setting.target_stock !== undefined ? Number(setting.target_stock) : reorderPoint * 2;
+      basis = "설정값";
+    } else if (v && v.dailyRate > 0) {
+      const leadTime = setting?.lead_time_days || 14;
+      const safety = setting?.safety_stock !== null && setting?.safety_stock !== undefined ? Number(setting.safety_stock) : v.dailyRate * 7;
+      reorderPoint = v.dailyRate * leadTime + safety;
+      targetStock = v.dailyRate * (leadTime + 30) + safety;
+      basis = "판매속도 자동계산";
+    } else {
+      continue;
+    }
+    if (eff <= reorderPoint) {
+      out.push({
+        item: inv, effectiveQty: eff, reorderPoint, targetStock, basis,
+        suggestedOrderQty: Math.max(0, Math.round(targetStock - eff)),
+        urgent: eff <= reorderPoint * 0.5
+      });
+    }
+  }
+  return out.sort((a, b) => (a.effectiveQty / (a.reorderPoint || 1)) - (b.effectiveQty / (b.reorderPoint || 1)));
+}
+
+function computeABCClass(cumShare) {
+  if (cumShare <= 80) return "A";
+  if (cumShare <= 95) return "B";
+  return "C";
+}
+
+function computeCustomerLastPurchase(sales) {
+  const map = new Map();
+  for (const r of sales) {
+    const c = r.customer || "(미지정)";
+    if (!map.has(c) || r.sale_date > map.get(c)) map.set(c, r.sale_date);
+  }
+  return map;
+}
+
 function computeInventoryKPIs(inventory, sales) {
   const totalItems = inventory.length;
   const totalQty = inventory.reduce((a, r) => a + (Number(r.total_qty) || 0), 0);

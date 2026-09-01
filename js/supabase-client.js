@@ -12,6 +12,8 @@ const Store = {
   sales: [],
   inventory: [],
   inventoryHistory: [],
+  inventoryTransactions: [],
+  itemSettings: [],
   dataLoadedAt: null
 };
 
@@ -96,7 +98,7 @@ async function fetchAllRows(table, columns = "*", pageSize = 1000) {
 }
 
 async function loadAllData(force = false) {
-  const cacheKey = "wm_data_cache_v1";
+  const cacheKey = "wm_data_cache_v2";
   if (!force) {
     try {
       const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
@@ -104,23 +106,29 @@ async function loadAllData(force = false) {
         Store.sales = cached.sales;
         Store.inventory = cached.inventory;
         Store.inventoryHistory = cached.inventoryHistory;
+        Store.inventoryTransactions = cached.inventoryTransactions || [];
+        Store.itemSettings = cached.itemSettings || [];
         Store.dataLoadedAt = new Date(cached.ts);
         return;
       }
     } catch (e) {}
   }
-  const [sales, inventory, inventoryHistory] = await Promise.all([
+  const [sales, inventory, inventoryHistory, inventoryTransactions, itemSettings] = await Promise.all([
     fetchAllRows("sales"),
     fetchAllRows("inventory_current"),
-    fetchAllRows("inventory_history")
+    fetchAllRows("inventory_history"),
+    fetchAllRows("inventory_transactions"),
+    fetchAllRows("item_settings")
   ]);
   Store.sales = sales;
   Store.inventory = inventory;
   Store.inventoryHistory = inventoryHistory;
+  Store.inventoryTransactions = inventoryTransactions;
+  Store.itemSettings = itemSettings;
   Store.dataLoadedAt = new Date();
   try {
     localStorage.setItem(cacheKey, JSON.stringify({
-      ts: Store.dataLoadedAt.getTime(), sales, inventory, inventoryHistory
+      ts: Store.dataLoadedAt.getTime(), sales, inventory, inventoryHistory, inventoryTransactions, itemSettings
     }));
   } catch (e) {}
 }

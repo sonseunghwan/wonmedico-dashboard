@@ -3,7 +3,7 @@ const AppState = { view: "overview" };
 const VIEW_TITLES = {
   overview: "종합 현황",
   sales: "매출 분석",
-  inventory: "재고현황",
+  inventory: "재고 관리",
   upload: "데이터 업로드",
   admin: "계정 관리"
 };

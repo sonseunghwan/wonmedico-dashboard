@@ -134,13 +134,14 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
     wrap.innerHTML = `
       <table class="data-table">
         <thead><tr>
-          <th>순위</th><th>품목</th><th class="num">매출</th><th class="num">비중</th><th class="num">누적비중</th>
+          <th>순위</th><th>품목</th><th title="누적매출 80%=A, 95%=B, 나머지=C">등급</th><th class="num">매출</th><th class="num">비중</th><th class="num">누적비중</th>
           <th class="num">판매수량</th><th class="num">평균단가</th><th class="num">전년동기</th>
         </tr></thead>
         <tbody>${rows.map(r => `
           <tr>
             <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
             <td>${escapeHtml(r.key)}</td>
+            <td><span class="tag ${ABC_CLASS_TAG[computeABCClass(r.cumShare)]}">${computeABCClass(r.cumShare)}</span></td>
             <td class="num">${fmtWon(r.revenue)}</td>
             <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
             <td class="num text-faint">${fmtPct(r.cumShare, { digits: 0 })}</td>
@@ -154,9 +155,10 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
     let cust = computeCustomerAnalysis(sales, range);
     let rows = cust.ranking;
     if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
+    const lastPurchaseMap = computeCustomerLastPurchase(sales);
     wrap.innerHTML = `
       <table class="data-table">
-        <thead><tr><th>순위</th><th>거래처</th><th class="num">매출</th><th class="num">비중</th><th class="num">거래건수</th><th class="num">건당 평균</th></tr></thead>
+        <thead><tr><th>순위</th><th>거래처</th><th class="num">매출</th><th class="num">비중</th><th class="num">거래건수</th><th class="num">건당 평균</th><th>최근 구매일</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr>
             <td><span class="rank-badge ${r.rank <= 3 ? "top3" : ""}">${r.rank}</span></td>
@@ -165,6 +167,7 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
             <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
             <td class="num">${fmtNum(r.count)}</td>
             <td class="num">${fmtWon(r.count > 0 ? r.revenue / r.count : 0)}</td>
+            <td class="text-faint">${lastPurchaseMap.get(r.key) || "-"}</td>
           </tr>`).join("")}
         </tbody>
       </table>`;
