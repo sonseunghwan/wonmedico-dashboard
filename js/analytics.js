@@ -164,6 +164,58 @@ function computeProductRanking(sales, range, prevRange) {
   });
 }
 
+function computeLostProducts(sales, range, prevRange) {
+  const cur = filterByRange(sales, range.start, range.end);
+  const prev = filterByRange(sales, prevRange.start, prevRange.end);
+  const curKeys = new Set(groupSum(cur, "item_name").map(g => g.key));
+  const prevG = groupSum(prev, "item_name");
+  return prevG.filter(g => !curKeys.has(g.key)).sort((a, b) => b.revenue - a.revenue);
+}
+
+function computeMonthSnapshot(sales, year, month) {
+  const start = `${year}-${String(month).padStart(2, "0")}-01`;
+  const end = `${year}-${String(month).padStart(2, "0")}-${String(lastDayOfMonthNum(year, month)).padStart(2, "0")}`;
+  const cur = filterByRange(sales, start, end);
+  const prevStart = `${year - 1}-${String(month).padStart(2, "0")}-01`;
+  const prevEnd = `${year - 1}-${String(month).padStart(2, "0")}-${String(lastDayOfMonthNum(year - 1, month)).padStart(2, "0")}`;
+  const prev = filterByRange(sales, prevStart, prevEnd);
+  const curRevenue = sumAmount(cur);
+  const prevRevenue = sumAmount(prev);
+  return {
+    label: `${year}년 ${month}월`, start, end,
+    revenue: curRevenue, prevRevenue,
+    growth: prevRevenue > 0 ? ((curRevenue - prevRevenue) / prevRevenue) * 100 : null,
+    qty: sumQty(cur), dealCount: cur.length
+  };
+}
+
+function lastDayOfMonthNum(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+function computeQuarterlyBreakdown(sales, year) {
+  const quarters = [];
+  for (let q = 0; q < 4; q++) {
+    const startMonth = q * 3 + 1;
+    const endMonth = q * 3 + 3;
+    const start = `${year}-${String(startMonth).padStart(2, "0")}-01`;
+    const end = `${year}-${String(endMonth).padStart(2, "0")}-${String(lastDayOfMonthNum(year, endMonth)).padStart(2, "0")}`;
+    const prevStart = `${year - 1}-${String(startMonth).padStart(2, "0")}-01`;
+    const prevEnd = `${year - 1}-${String(endMonth).padStart(2, "0")}-${String(lastDayOfMonthNum(year - 1, endMonth)).padStart(2, "0")}`;
+    const cur = filterByRange(sales, start, end);
+    const prev = filterByRange(sales, prevStart, prevEnd);
+    const curRevenue = sumAmount(cur);
+    const prevRevenue = sumAmount(prev);
+    quarters.push({
+      label: `${q + 1}분기`, start, end,
+      revenue: curRevenue, prevRevenue,
+      growth: prevRevenue > 0 ? ((curRevenue - prevRevenue) / prevRevenue) * 100 : null,
+      qty: sumQty(cur), prevQty: sumQty(prev)
+    });
+  }
+  return quarters;
+}
+
 function computeCustomerAnalysis(sales, range, prevRange) {
   const cur = filterByRange(sales, range.start, range.end);
   const g = groupSum(cur, "customer");

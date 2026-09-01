@@ -35,6 +35,9 @@ function renderOverview(container) {
 
     <div class="kpi-band" id="ovKpiGrid"></div>
 
+    <div class="section-title">당월 · 전월 · 누계 스냅샷 <span class="text-faint" style="font-weight:400;font-size:12px">전년 동기 대비</span></div>
+    <div class="snapshot-grid" id="ovSnapshotGrid"></div>
+
     <div class="section-title">월별 매출 추이 <span class="text-faint" style="font-weight:400;font-size:12px">막대=선택연도 · 점선=전년 동기 (범례 클릭으로 표시/숨김)</span></div>
     <div class="card chart-card">
       <div class="chart-box"><canvas id="ovMonthlyChart"></canvas></div>
@@ -70,6 +73,7 @@ function renderOverview(container) {
 
   wireRangeControls(container, range, (r) => { AppState.overviewRange = r; renderOverview(container); });
   renderRecentMonthCard(document.getElementById("ovRecentMonth"), recent, sales);
+  renderSnapshotGrid(document.getElementById("ovSnapshotGrid"), sales);
 
   const kpi = computeOverviewKPIs(sales, range);
   renderKpiGrid(document.getElementById("ovKpiGrid"), kpi, range, sales);
@@ -240,6 +244,41 @@ function renderRecentMonthCard(el, recent, sales) {
   });
 }
 
+function renderSnapshotGrid(el, sales) {
+  const latest = latestDataDate();
+  let y = latest.getFullYear(), m = latest.getMonth() + 1;
+  let py = y, pm = m - 1;
+  if (pm === 0) { pm = 12; py = y - 1; }
+
+  const thisMonth = computeMonthSnapshot(sales, y, m);
+  const lastMonth = computeMonthSnapshot(sales, py, pm);
+  const ytdEnd = fmtDate(latest);
+  const ytdCur = filterByRange(sales, `${y}-01-01`, ytdEnd);
+  const ytdPrevRange = shiftRangeOneYearBack(`${y}-01-01`, ytdEnd);
+  const ytdPrev = filterByRange(sales, ytdPrevRange.start, ytdPrevRange.end);
+  const ytdCurRevenue = sumAmount(ytdCur), ytdPrevRevenue = sumAmount(ytdPrev);
+  const lastMonthEnd = lastMonth.end;
+  const ytdLastEnd = filterByRange(sales, `${y}-01-01`, lastMonthEnd);
+  const ytdLastEndPrevRange = shiftRangeOneYearBack(`${y}-01-01`, lastMonthEnd);
+  const ytdLastEndPrev = filterByRange(sales, ytdLastEndPrevRange.start, ytdLastEndPrevRange.end);
+
+  const cards = [
+    { label: `당월 · ${m}월`, rev: thisMonth.revenue, prevRev: thisMonth.prevRevenue, growth: thisMonth.growth },
+    { label: `전월 · ${pm}월`, rev: lastMonth.revenue, prevRev: lastMonth.prevRevenue, growth: lastMonth.growth },
+    { label: `당월 누계 · 1~${m}월`, rev: ytdCurRevenue, prevRev: ytdPrevRevenue, growth: ytdPrevRevenue > 0 ? ((ytdCurRevenue - ytdPrevRevenue) / ytdPrevRevenue) * 100 : null },
+    { label: `전월 누계 · 1~${pm}월`, rev: sumAmount(ytdLastEnd), prevRev: sumAmount(ytdLastEndPrev), growth: null }
+  ];
+  cards[3].growth = cards[3].prevRev > 0 ? ((cards[3].rev - cards[3].prevRev) / cards[3].prevRev) * 100 : null;
+
+  el.innerHTML = cards.map(c => `
+    <div class="snapshot-card">
+      <div class="snapshot-card-label">${c.label}</div>
+      <div class="snapshot-card-value">${fmtWon(c.rev)}</div>
+      <div class="snapshot-card-sub">전년 ${fmtWon(c.prevRev)} ${deltaTag(c.growth)}</div>
+    </div>
+  `).join("");
+}
+
 const ABC_CLASS_TAG = { A: "tag-green", B: "tag-amber", C: "tag-gray" };
 
 function renderRankingTable(el, ranking, sales, range) {
@@ -253,7 +292,7 @@ function renderRankingTable(el, ranking, sales, range) {
       <td><span class="tag ${ABC_CLASS_TAG[cls]}">${cls}</span></td>
       <td class="num">${fmtWon(r.revenue)}<div class="text-faint" style="font-size:11px">전년 ${fmtWon(r.prevRevenue)}</div></td>
       <td class="num">${deltaTag(r.growth)}</td>
-      <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
+      <td class="num">${fmtPct(r.share, { digits: 1 })}<div class="row-bar-track"><div class="row-bar-fill" style="width:${Math.min(r.share, 100)}%"></div></div></td>
       <td class="num">${fmtNum(r.qty)}개<div class="text-faint" style="font-size:11px">전년 ${fmtNum(r.prevQty)}개</div></td>
       <td class="num">${deltaTag(r.qtyGrowth)}</td>
     </tr>
@@ -268,6 +307,7 @@ function renderRankingTable(el, ranking, sales, range) {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    <div id="ovLostProducts"></div>
   `;
   if (sales && range) {
     el.querySelectorAll("tr.clickable-row").forEach(tr => {
@@ -277,6 +317,16 @@ function renderRankingTable(el, ranking, sales, range) {
         openSalesDetailModal(item, rows, { subtitle: `${range.start} ~ ${range.end}` });
       });
     });
+    const prevRange = shiftRangeOneYearBack(range.start, range.end);
+    const lost = computeLostProducts(sales, range, prevRange);
+    if (lost.length) {
+      document.getElementById("ovLostProducts").innerHTML = `
+        <div class="lost-products-note">
+          ⚠ <b>전년 동기엔 있었으나 이번 기간엔 실적이 없는 품목 (${lost.length}개)</b> —
+          ${lost.slice(0, 8).map(l => `${escapeHtml(l.key)} 전년 ${fmtWon(l.revenue)}`).join(" · ")}${lost.length > 8 ? ` 외 ${lost.length - 8}개` : ""}
+        </div>
+      `;
+    }
   }
 }
 

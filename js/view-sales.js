@@ -36,6 +36,9 @@ function renderSales(container) {
       <div class="chart-box sm"><canvas id="saTrendChart"></canvas></div>
     </div>
 
+    <div class="section-title">분기별 실적 <span class="text-faint" style="font-weight:400;font-size:12px">선택 기간의 종료연도 기준</span></div>
+    <div class="card"><div class="table-wrap" id="saQuarterWrap"></div></div>
+
     <div class="section-title">기간 내 급성장 / 급감 품목 <span class="text-faint" style="font-weight:400;font-size:12px">전년 동기 대비, 매출 500만원 이상 품목</span></div>
     <div class="two-col" id="saMovers"></div>
 
@@ -61,6 +64,7 @@ function renderSales(container) {
   });
 
   renderTrendLine("saTrendChart", computeLast12MonthsTrend(sales, range.end), { label: "월 매출" });
+  renderQuarterlyTable(document.getElementById("saQuarterWrap"), sales, parseInt(range.end.slice(0, 4), 10));
 
   const prevRange = shiftRangeOneYearBack(range.start, range.end);
   const ranking = computeProductRanking(sales, range, prevRange);
@@ -79,6 +83,35 @@ function renderSales(container) {
   document.getElementById("saExportBtn").addEventListener("click", () => {
     exportSalesTableCsv(AppState.salesTab || "product", sales, range, prevRange, AppState.salesSearch || "");
   });
+}
+
+function renderQuarterlyTable(el, sales, year) {
+  const quarters = computeQuarterlyBreakdown(sales, year);
+  const totalCur = quarters.reduce((a, q) => a + q.revenue, 0);
+  const totalPrev = quarters.reduce((a, q) => a + q.prevRevenue, 0);
+  el.innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>분기</th><th class="num">작년</th><th class="num">올해</th><th class="num">증감</th><th class="num">올해 수량</th></tr></thead>
+      <tbody>
+        ${quarters.map(q => `
+          <tr>
+            <td>${q.label} <span class="text-faint" style="font-size:11px">${q.start.slice(5)} ~ ${q.end.slice(5)}</span></td>
+            <td class="num text-faint">${fmtWon(q.prevRevenue)}</td>
+            <td class="num" style="font-weight:700">${fmtWon(q.revenue)}</td>
+            <td class="num">${deltaTag(q.growth)}</td>
+            <td class="num">${fmtNum(q.qty)}개</td>
+          </tr>
+        `).join("")}
+        <tr style="background:#fafbfd">
+          <td style="font-weight:700">합계</td>
+          <td class="num text-faint">${fmtWon(totalPrev)}</td>
+          <td class="num" style="font-weight:800">${fmtWon(totalCur)}</td>
+          <td class="num">${deltaTag(totalPrev > 0 ? ((totalCur - totalPrev) / totalPrev) * 100 : null)}</td>
+          <td class="num">${fmtNum(quarters.reduce((a, q) => a + q.qty, 0))}개</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
 }
 
 function exportSalesTableCsv(tab, sales, range, prevRange, term) {
@@ -158,7 +191,7 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
             <td class="num">${fmtWon(r.revenue)}</td>
             <td class="num text-faint">${fmtWon(r.prevRevenue)}</td>
             <td class="num">${deltaTag(r.growth)}</td>
-            <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
+            <td class="num">${fmtPct(r.share, { digits: 1 })}<div class="row-bar-track"><div class="row-bar-fill" style="width:${Math.min(r.share, 100)}%"></div></div></td>
             <td class="num text-faint">${fmtPct(r.cumShare, { digits: 0 })}</td>
             <td class="num">${fmtNum(r.qty)}개</td>
             <td class="num text-faint">${fmtNum(r.prevQty)}개</td>
@@ -166,7 +199,8 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
             <td class="num">${fmtWon(r.avgPrice)}</td>
           </tr>`).join("")}
         </tbody>
-      </table>`;
+      </table>
+      <div id="saLostProducts"></div>`;
     wrap.querySelectorAll("tr.clickable-row").forEach(tr => {
       tr.addEventListener("click", () => {
         const item = tr.dataset.item;
@@ -174,6 +208,16 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
         openSalesDetailModal(item, detail, { subtitle: `${range.start} ~ ${range.end}` });
       });
     });
+    if (!term) {
+      const lost = computeLostProducts(sales, range, prevRange);
+      if (lost.length) {
+        document.getElementById("saLostProducts").innerHTML = `
+          <div class="lost-products-note">
+            ⚠ <b>전년 동기엔 있었으나 이번 기간엔 실적이 없는 품목 (${lost.length}개)</b> —
+            ${lost.slice(0, 10).map(l => `${escapeHtml(l.key)} 전년 ${fmtWon(l.revenue)}`).join(" · ")}${lost.length > 10 ? ` 외 ${lost.length - 10}개` : ""}
+          </div>`;
+      }
+    }
   } else if (tab === "customer") {
     let cust = computeCustomerAnalysis(sales, range, prevRange);
     let rows = cust.ranking;
@@ -189,7 +233,7 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
             <td class="num">${fmtWon(r.revenue)}</td>
             <td class="num text-faint">${fmtWon(r.prevRevenue)}</td>
             <td class="num">${deltaTag(r.growth)}</td>
-            <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
+            <td class="num">${fmtPct(r.share, { digits: 1 })}<div class="row-bar-track"><div class="row-bar-fill" style="width:${Math.min(r.share, 100)}%"></div></div></td>
             <td class="num">${fmtNum(r.count)}</td>
             <td class="num">${fmtWon(r.count > 0 ? r.revenue / r.count : 0)}</td>
             <td class="text-faint">${lastPurchaseMap.get(r.key) || "-"}</td>
@@ -216,7 +260,7 @@ function renderSalesTable(tab, sales, range, prevRange, search) {
             <td class="num">${fmtWon(r.revenue)}</td>
             <td class="num text-faint">${fmtWon(r.prevRevenue)}</td>
             <td class="num">${deltaTag(r.growth)}</td>
-            <td class="num">${fmtPct(r.share, { digits: 1 })}</td>
+            <td class="num">${fmtPct(r.share, { digits: 1 })}<div class="row-bar-track"><div class="row-bar-fill" style="width:${Math.min(r.share, 100)}%"></div></div></td>
             <td class="num">${fmtNum(r.count)}</td>
             <td class="num">${fmtWon(r.avgDeal)}</td>
           </tr>`).join("")}
