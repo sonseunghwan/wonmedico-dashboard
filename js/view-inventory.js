@@ -21,6 +21,12 @@ function renderInventory(container) {
   const lines = [...new Set(inventory.map(r => r.line_category).filter(Boolean))].sort();
 
   container.innerHTML = `
+    <div class="page-lede">
+      <div class="page-lede-eyebrow">WONMEDICO INVENTORY</div>
+      <div class="page-lede-title">재고현황</div>
+      <div class="page-lede-sub">창고별 재고 · 유통기한 · 판매 속도 기반 재주문 알림</div>
+    </div>
+
     <div class="grid grid-4">
       <div class="card kpi-card">
         <div class="kpi-label">취급 품목수</div>
@@ -65,6 +71,7 @@ function renderInventory(container) {
       <div class="filter-spacer"></div>
       <select id="invLineFilter"><option value="">전체 라인</option>${lines.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("")}</select>
       <input type="text" id="invSearch" class="search-input" placeholder="품목명 검색...">
+      <button class="btn btn-ghost btn-sm" id="invExportBtn">⇩ CSV 내보내기</button>
     </div>
     <div class="card"><div class="table-wrap" id="invTableWrap"></div></div>
   `;
@@ -85,6 +92,17 @@ function renderInventory(container) {
   });
   document.getElementById("invLineFilter").addEventListener("change", (e) => { state.line = e.target.value; renderInvTable(); });
   document.getElementById("invSearch").addEventListener("input", (e) => { state.search = e.target.value.toLowerCase(); renderInvTable(); });
+  document.getElementById("invExportBtn").addEventListener("click", () => {
+    exportCsv(`재고현황_${snapshotDate || "latest"}.csv`,
+      ["라인", "품목", "총수량", "본사", "새서울", "대전", "입고일", "유통기한", "생산수량", "90일판매", "소진예상일", "상태"],
+      state.currentRows.map(r => {
+        const v = velocityMap.get(r.item_name);
+        const st = v ? INV_STATUS_LABEL[v.status] : INV_STATUS_LABEL.normal;
+        return [r.line_category || "", r.item_name, r.total_qty, r.hq_qty, r.saeseoul_qty, r.daejeon_qty,
+          r.received_date ? fmtDate(r.received_date) : "", r.expiry_date ? fmtDate(r.expiry_date) : "",
+          r.production_qty, v ? v.soldQty90 : "", v && isFinite(v.daysOfStock) ? Math.round(v.daysOfStock) : "", st.label];
+      }));
+  });
 
   function renderInvTable() {
     let rows = inventory.slice();
@@ -100,6 +118,7 @@ function renderInventory(container) {
       const an = Number(av) || 0, bn = Number(bv) || 0;
       return state.sortDir === "asc" ? an - bn : bn - an;
     });
+    state.currentRows = rows;
     renderInventoryTable(document.getElementById("invTableWrap"), rows, velocityMap, state, renderInvTable);
   }
   renderInvTable();

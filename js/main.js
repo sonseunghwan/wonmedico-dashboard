@@ -59,6 +59,7 @@ async function initAppShell() {
   document.querySelectorAll(".nav-item").forEach(btn => {
     btn.addEventListener("click", () => renderView(btn.dataset.view));
   });
+  document.getElementById("changePasswordBtn").addEventListener("click", openPasswordModal);
   document.getElementById("logoutBtn").addEventListener("click", async () => {
     await sb.auth.signOut();
     localStorage.removeItem("wm_data_cache_v1");
@@ -77,6 +78,44 @@ async function initAppShell() {
   await loadAllData();
   updateDataUpdatedLabel();
   renderView("overview");
+}
+
+function openPasswordModal() {
+  const overlay = document.getElementById("pwModalOverlay");
+  document.getElementById("pwChangeForm").reset();
+  document.getElementById("pwChangeError").textContent = "";
+  overlay.classList.remove("hidden");
+  document.getElementById("newPassword1").focus();
+}
+function closePasswordModal() {
+  document.getElementById("pwModalOverlay").classList.add("hidden");
+}
+
+function wirePasswordModal() {
+  document.getElementById("pwModalCancelBtn").addEventListener("click", closePasswordModal);
+  document.getElementById("pwModalOverlay").addEventListener("click", (e) => {
+    if (e.target.id === "pwModalOverlay") closePasswordModal();
+  });
+  document.getElementById("pwChangeForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const p1 = document.getElementById("newPassword1").value;
+    const p2 = document.getElementById("newPassword2").value;
+    const errEl = document.getElementById("pwChangeError");
+    const btn = document.getElementById("pwModalSubmitBtn");
+    errEl.textContent = "";
+    if (p1 !== p2) { errEl.textContent = "비밀번호가 서로 일치하지 않습니다."; return; }
+    btn.disabled = true; btn.textContent = "변경 중...";
+    try {
+      const { error } = await sb.auth.updateUser({ password: p1 });
+      if (error) throw error;
+      closePasswordModal();
+      toast("비밀번호가 변경되었습니다.", "success");
+    } catch (err) {
+      errEl.textContent = err.message || "변경에 실패했습니다.";
+    } finally {
+      btn.disabled = false; btn.textContent = "변경하기";
+    }
+  });
 }
 
 async function handleLogin(e) {
@@ -102,6 +141,7 @@ async function handleLogin(e) {
 
 async function boot() {
   document.getElementById("loginForm").addEventListener("submit", handleLogin);
+  wirePasswordModal();
 
   const { data } = await sb.auth.getSession();
   if (data.session) {

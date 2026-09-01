@@ -81,6 +81,7 @@
           <div class="user-role" id="userRoleLabel">뷰어</div>
         </div>
       </div>
+      <button class="btn btn-ghost btn-block" id="changePasswordBtn">비밀번호 변경</button>
       <button class="btn btn-ghost btn-block" id="logoutBtn">로그아웃</button>
     </div>
   </aside>
@@ -97,6 +98,26 @@
       <div class="loading-block">불러오는 중...</div>
     </div>
   </main>
+</div>
+
+<!-- ===== PASSWORD CHANGE MODAL ===== -->
+<div id="pwModalOverlay" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-title">비밀번호 변경</div>
+    <form id="pwChangeForm">
+      <label class="modal-label">새 비밀번호
+        <input type="password" id="newPassword1" required minlength="8" placeholder="8자 이상" autocomplete="new-password">
+      </label>
+      <label class="modal-label">새 비밀번호 확인
+        <input type="password" id="newPassword2" required minlength="8" placeholder="다시 입력" autocomplete="new-password">
+      </label>
+      <div class="modal-error" id="pwChangeError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="pwModalCancelBtn">취소</button>
+        <button type="submit" class="btn btn-primary" id="pwModalSubmitBtn">변경하기</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script src="js/supabase-client.js"></script>

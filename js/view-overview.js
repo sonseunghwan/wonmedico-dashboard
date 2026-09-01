@@ -8,21 +8,30 @@ function renderOverview(container) {
   const range = AppState.overviewRange || defaultYearRange();
   AppState.overviewRange = range;
 
+  const recent = computeRecentMonthDetail(sales);
+
   container.innerHTML = `
+    <div class="page-lede">
+      <div class="page-lede-eyebrow">WONMEDICO SALES</div>
+      <div class="page-lede-title">매출 종합 현황</div>
+      <div class="page-lede-sub">기간별 매출 추이 · 브랜드/거래처 구성 · 제품 랭킹</div>
+    </div>
+
     <div class="filter-bar" id="ovFilterBar">
       <button class="chip-btn" data-preset="thisYear">올해</button>
       <button class="chip-btn" data-preset="lastYear">작년</button>
       <button class="chip-btn" data-preset="last12m">최근 12개월</button>
       <button class="chip-btn" data-preset="all">전체 기간</button>
       <div class="filter-spacer"></div>
-      <input type="date" id="ovStart" value="${range.start}">
+      <span class="text-mute" style="font-size:12.5px;font-weight:600">조회 기간</span>
+      ${buildYearMonthPicker("ovStart", range.start)}
       <span class="text-faint">~</span>
-      <input type="date" id="ovEnd" value="${range.end}">
+      ${buildYearMonthPicker("ovEnd", range.end)}
     </div>
 
     <div class="grid grid-4" id="ovKpiGrid"></div>
 
-    <div class="section-title">월별 매출 추이 <span class="text-faint" style="font-weight:400;font-size:12px">막대=선택연도 · 점선=전년 동기</span></div>
+    <div class="section-title">월별 매출 추이 <span class="text-faint" style="font-weight:400;font-size:12px">막대=선택연도 · 점선=전년 동기 (범례 클릭으로 표시/숨김)</span></div>
     <div class="card chart-card">
       <div class="chart-box"><canvas id="ovMonthlyChart"></canvas></div>
     </div>
@@ -40,13 +49,23 @@ function renderOverview(container) {
       </div>
     </div>
 
-    <div class="section-title">기간 내 제품 랭킹 &amp; 급성장 / 급감 품목</div>
-    <div class="card">
-      <div class="table-wrap" id="ovRankTableWrap"></div>
+    <div class="section-title">최근월 &amp; 누계 실적</div>
+    <div class="two-col two-col-narrow-first">
+      <div class="card card-pad">
+        <div class="chart-card-title">최근월 <span class="text-faint" style="font-weight:400">${recent.monthLabel}</span></div>
+        <div id="ovRecentMonth" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <div class="card-pad" style="padding-bottom:0">
+          <div class="chart-card-title">기간 내 제품 랭킹 &amp; 급성장 / 급감 품목</div>
+        </div>
+        <div class="table-wrap" id="ovRankTableWrap"></div>
+      </div>
     </div>
   `;
 
   wireRangeControls(container, range, (r) => { AppState.overviewRange = r; renderOverview(container); });
+  renderRecentMonthCard(document.getElementById("ovRecentMonth"), recent);
 
   const kpi = computeOverviewKPIs(sales, range);
   renderKpiGrid(document.getElementById("ovKpiGrid"), kpi, range);
@@ -78,7 +97,28 @@ function defaultYearRange() {
   return { start: `${y}-01-01`, end: fmtDate(latest) };
 }
 
-function wireRangeControls(container, range, onChange) {
+function getAvailableYears() {
+  const set = new Set(Store.sales.map(r => r.sale_date.slice(0, 4)));
+  set.add(String(latestDataDate().getFullYear()));
+  return [...set].map(Number).sort((a, b) => a - b);
+}
+
+function lastDayOfMonth(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+function buildYearMonthPicker(idPrefix, dateStr) {
+  const [y, m] = dateStr.split("-");
+  const years = getAvailableYears();
+  const yearOpts = years.map(yr => `<option value="${yr}" ${String(yr) === y ? "selected" : ""}>${yr}년</option>`).join("");
+  const monthOpts = Array.from({ length: 12 }, (_, i) => i + 1)
+    .map(mo => { const mm = String(mo).padStart(2, "0"); return `<option value="${mm}" ${mm === m ? "selected" : ""}>${mo}월</option>`; })
+    .join("");
+  return `<select id="${idPrefix}Year">${yearOpts}</select><select id="${idPrefix}Month">${monthOpts}</select>`;
+}
+
+function wireRangeControls(container, range, onChange, prefix) {
+  prefix = prefix || "ov";
   const bar = container.querySelector(".filter-bar");
   bar.querySelectorAll(".chip-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -92,8 +132,19 @@ function wireRangeControls(container, range, onChange) {
       onChange(r);
     });
   });
-  container.querySelector("#ovStart")?.addEventListener("change", (e) => onChange({ start: e.target.value, end: container.querySelector("#ovEnd").value }));
-  container.querySelector("#ovEnd")?.addEventListener("change", (e) => onChange({ start: container.querySelector("#ovStart").value, end: e.target.value }));
+  const applyManual = () => {
+    const sy = container.querySelector(`#${prefix}StartYear`)?.value;
+    const sm = container.querySelector(`#${prefix}StartMonth`)?.value;
+    const ey = container.querySelector(`#${prefix}EndYear`)?.value;
+    const em = container.querySelector(`#${prefix}EndMonth`)?.value;
+    if (!sy || !sm || !ey || !em) return;
+    const start = `${sy}-${sm}-01`;
+    const end = `${ey}-${em}-${String(lastDayOfMonth(Number(ey), Number(em))).padStart(2, "0")}`;
+    onChange({ start, end });
+  };
+  [`#${prefix}StartYear`, `#${prefix}StartMonth`, `#${prefix}EndYear`, `#${prefix}EndMonth`].forEach(sel => {
+    container.querySelector(sel)?.addEventListener("change", applyManual);
+  });
 }
 
 function deltaTag(pct) {
@@ -150,6 +201,25 @@ function renderCustomerConcentration(el, cust) {
         <div><div class="text-faint">상위 10개 비중</div><div style="font-weight:700;font-size:15px">${fmtPct(cust.top10Share, { digits: 0 })}</div></div>
       </div>
     </div>
+  `;
+}
+
+function renderRecentMonthCard(el, recent) {
+  if (!recent.dealCount) { el.innerHTML = '<div class="empty-note">해당 월 데이터가 없습니다</div>'; return; }
+  el.innerHTML = `
+    <div class="kpi-value" style="font-size:22px">${fmtWon(recent.curRevenue)}</div>
+    <div class="kpi-sub" style="margin-bottom:14px">${deltaTag(recent.momGrowth)} 전월 대비 · ${deltaTag(recent.yoyGrowth)} 전년동월 대비</div>
+    <div style="font-size:12px;color:var(--text-mute);font-weight:600;margin-bottom:6px">품목별 매출 (상위 5)</div>
+    ${recent.products.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f1f4;font-size:12.5px">
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${escapeHtml(p.key)}</span>
+        <span style="display:flex;gap:8px;align-items:center">
+          <span class="text-faint">${fmtPct(p.share, { digits: 0 })}</span>
+          <span style="font-weight:700">${fmtWon(p.revenue)}</span>
+        </span>
+      </div>
+    `).join("")}
+    <div class="text-faint" style="font-size:11.5px;margin-top:10px">거래 ${fmtNum(recent.dealCount)}건</div>
   `;
 }
 

@@ -185,7 +185,13 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px}
 .chart-box.sm{height:200px}
 
 .two-col{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+.two-col-narrow-first{grid-template-columns:1fr 1.6fr}
 @media(max-width:1000px){.two-col{grid-template-columns:1fr}}
+
+.page-lede{margin-bottom:18px}
+.page-lede-eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--brand);margin-bottom:4px}
+.page-lede-title{font-size:20px;font-weight:800;letter-spacing:-.01em}
+.page-lede-sub{font-size:12.5px;color:var(--text-mute);margin-top:3px}
 
 .empty-note{padding:40px 0;text-align:center;color:var(--text-faint);font-size:13px}
 .progress-track{height:6px;border-radius:4px;background:#eef0f4;overflow:hidden}
@@ -216,6 +222,21 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px}
 
 .badge-admin{background:var(--brand-soft);color:var(--brand-dark);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
 .badge-viewer{background:#f1f3f7;color:var(--text-mute);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+
+/* Modal */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,20,30,.45);
+  display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;
+}
+.modal-card{
+  width:100%;max-width:360px;background:var(--surface);border-radius:14px;
+  padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.2);
+}
+.modal-title{font-size:15.5px;font-weight:700;margin-bottom:16px}
+.modal-label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--text-mute);font-weight:600;margin-bottom:12px}
+.modal-label input{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:14px;color:var(--text)}
+.modal-error{color:var(--red);font-size:12.5px;min-height:16px;margin-bottom:4px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
 
 .mono{font-variant-numeric:tabular-nums}
 .text-mute{color:var(--text-mute)}

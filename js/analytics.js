@@ -232,6 +232,40 @@ function computeLast12MonthsTrend(sales, endDate) {
   return buckets;
 }
 
+function computeRecentMonthDetail(sales) {
+  const latest = latestDataDateFromSales(sales);
+  const mKey = latest.toISOString().slice(0, 7);
+  const y = latest.getFullYear(), m = latest.getMonth();
+  const prevMKey = new Date(y, m - 1, 1).toISOString().slice(0, 7);
+  const prevYearMKey = new Date(y - 1, m, 1).toISOString().slice(0, 7);
+
+  const cur = sales.filter(r => monthKey(r.sale_date) === mKey);
+  const prevMonth = sales.filter(r => monthKey(r.sale_date) === prevMKey);
+  const prevYear = sales.filter(r => monthKey(r.sale_date) === prevYearMKey);
+
+  const curRevenue = sumAmount(cur);
+  const momRevenue = sumAmount(prevMonth);
+  const yoyRevenue = sumAmount(prevYear);
+
+  const products = groupSum(cur, "item_name").slice(0, 5);
+  const totalRevenue = curRevenue;
+  return {
+    monthLabel: `${y}년 ${m + 1}월`,
+    curRevenue, momRevenue, yoyRevenue,
+    momGrowth: momRevenue > 0 ? ((curRevenue - momRevenue) / momRevenue) * 100 : null,
+    yoyGrowth: yoyRevenue > 0 ? ((curRevenue - yoyRevenue) / yoyRevenue) * 100 : null,
+    dealCount: cur.length,
+    products: products.map(p => ({ ...p, share: totalRevenue > 0 ? (p.revenue / totalRevenue) * 100 : 0 }))
+  };
+}
+
+function latestDataDateFromSales(sales) {
+  if (!sales.length) return new Date();
+  let max = sales[0].sale_date;
+  for (const r of sales) if (r.sale_date > max) max = r.sale_date;
+  return new Date(max);
+}
+
 // ---------- inventory analytics ----------
 
 function computeInventoryValuation(inventory, sales) {

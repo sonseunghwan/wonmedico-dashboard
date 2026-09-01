@@ -54,6 +54,26 @@ function daysBetween(a, b) {
   return Math.round((b.getTime() - a.getTime()) / MS);
 }
 
+function exportCsv(filename, headers, rows) {
+  const esc = (v) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [headers.map(esc).join(",")];
+  for (const row of rows) lines.push(row.map(esc).join(","));
+  const csv = "﻿" + lines.join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function toast(msg, type = "") {
   const el = document.createElement("div");
   el.className = "toast" + (type ? " " + type : "");

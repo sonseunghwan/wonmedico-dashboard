@@ -9,15 +9,22 @@ function renderSales(container) {
   const tab = AppState.salesTab || "product";
 
   container.innerHTML = `
+    <div class="page-lede">
+      <div class="page-lede-eyebrow">WONMEDICO SALES</div>
+      <div class="page-lede-title">매출 분석 심층</div>
+      <div class="page-lede-sub">제품별 랭킹 · 거래처별 · 담당자별 · 급성장/급감 품목</div>
+    </div>
+
     <div class="filter-bar" id="saFilterBar">
       <button class="chip-btn" data-preset="thisYear">올해</button>
       <button class="chip-btn" data-preset="lastYear">작년</button>
       <button class="chip-btn" data-preset="last12m">최근 12개월</button>
       <button class="chip-btn" data-preset="all">전체 기간</button>
       <div class="filter-spacer"></div>
-      <input type="date" id="saStart" value="${range.start}">
+      <span class="text-mute" style="font-size:12.5px;font-weight:600">조회 기간</span>
+      ${buildYearMonthPicker("saStart", range.start)}
       <span class="text-faint">~</span>
-      <input type="date" id="saEnd" value="${range.end}">
+      ${buildYearMonthPicker("saEnd", range.end)}
     </div>
 
     <div class="section-title">최근 12개월 매출 추이</div>
@@ -35,11 +42,13 @@ function renderSales(container) {
         <button class="chip-btn" data-tab="manager">담당자별</button>
       </div>
       <input type="text" id="saSearch" class="search-input" placeholder="검색...">
+      <div class="filter-spacer"></div>
+      <button class="btn btn-ghost btn-sm" id="saExportBtn">⇩ CSV 내보내기</button>
     </div>
     <div class="card"><div class="table-wrap" id="saTableWrap"></div></div>
   `;
 
-  wireRangeControls(container, range, (r) => { AppState.salesRange = r; renderSales(container); });
+  wireRangeControls(container, range, (r) => { AppState.salesRange = r; renderSales(container); }, "sa");
 
   container.querySelectorAll("#saTabbar .chip-btn").forEach(b => {
     b.classList.toggle("active", b.dataset.tab === tab);
@@ -61,6 +70,33 @@ function renderSales(container) {
   });
 
   renderSalesTable(tab, sales, range, prevRange, searchTerm);
+
+  document.getElementById("saExportBtn").addEventListener("click", () => {
+    exportSalesTableCsv(AppState.salesTab || "product", sales, range, prevRange, AppState.salesSearch || "");
+  });
+}
+
+function exportSalesTableCsv(tab, sales, range, prevRange, term) {
+  term = (term || "").trim().toLowerCase();
+  if (tab === "product") {
+    let rows = computeProductRanking(sales, range, prevRange);
+    if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
+    exportCsv(`매출_제품별_${range.start}_${range.end}.csv`,
+      ["순위", "품목", "매출", "비중(%)", "판매수량", "평균단가", "전년동기대비(%)"],
+      rows.map(r => [r.rank, r.key, Math.round(r.revenue), r.share.toFixed(1), r.qty, Math.round(r.avgPrice), r.growth === null ? "" : r.growth.toFixed(1)]));
+  } else if (tab === "customer") {
+    let rows = computeCustomerAnalysis(sales, range).ranking;
+    if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
+    exportCsv(`매출_거래처별_${range.start}_${range.end}.csv`,
+      ["순위", "거래처", "매출", "비중(%)", "거래건수", "건당평균"],
+      rows.map(r => [r.rank, r.key, Math.round(r.revenue), r.share.toFixed(1), r.count, Math.round(r.count > 0 ? r.revenue / r.count : 0)]));
+  } else {
+    let rows = computeManagerPerformance(sales, range);
+    if (term) rows = rows.filter(r => r.key.toLowerCase().includes(term));
+    exportCsv(`매출_담당자별_${range.start}_${range.end}.csv`,
+      ["순위", "담당자", "매출", "비중(%)", "거래건수", "건당평균"],
+      rows.map(r => [r.rank, r.key, Math.round(r.revenue), r.share.toFixed(1), r.count, Math.round(r.avgDeal)]));
+  }
 }
 
 function renderMovers(el, ranking) {
