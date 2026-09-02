@@ -1,3 +1,27 @@
+// ---------- inventory line category classification ----------
+// Wonmedico's source spreadsheet groups rows by loose section headers (e.g. a
+// single "Liften S" header spans device units, bundled cosmetics, and plain
+// packaging materials). This reclassifies each item into a clean, consistent
+// business line based on the item name itself, falling back to the raw sheet
+// label only when the name gives no signal.
+function classifyLineCategory(itemName, rawLine) {
+  const n = itemName || "";
+  const raw = (rawLine || "").replace(/\s+/g, " ").trim();
+
+  if (/단상자|미니어처/.test(n)) return "기타";
+  if (/헤어빔/.test(n) && /샴푸|컨디셔너|앰플|파우치/.test(n)) return "헤어 라인";
+  if (/헤어케어|클라빔|헤어부스터|두피앰플/.test(n)) return "헤어 라인";
+  if (/박스|쇼핑백|케이스|패드|아웃박스|슬리브|접이박스|카톤/.test(n)) return "부자재";
+  if (/Liften\s*S|카트리지|헤어빔|헤어붐|헤어뱅|Oligihome/i.test(n)) return "디바이스 라인";
+  if (/올리지오|클라비안|라비쥬|라비뷰|아큐덤|약산성|크라이오덤|베케이션|울트라|쁘띠글로우|선스크린|폼\s?클렌저|라비엑소좀/.test(n)) return "메디컬 라인";
+
+  if (/welo/i.test(raw)) return "디바이스 라인";
+  if (/헤어/.test(raw)) return "헤어 라인";
+  if (/메디컬/.test(raw)) return "메디컬 라인";
+  if (/부자재/.test(raw)) return "부자재";
+  return "기타";
+}
+
 // ---------- text normalization & fuzzy item matching ----------
 
 function normalizeName(s) {

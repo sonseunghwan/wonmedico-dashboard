@@ -221,10 +221,10 @@ function parseInventorySheet(ws, snapshotDate) {
     const line = r[6] ? String(r[6]).trim() : null;
     if (line) lastLine = line;
     const item = r[7] ? String(r[7]).trim() : null;
-    if (!item) continue;
+    if (!item || item === "품목") continue;
     rows.push({
       snapshot_date: snapshotDate,
-      line_category: lastLine,
+      line_category: classifyLineCategory(item, lastLine),
       item_name: item,
       total_qty: toNum(r[8]),
       hq_qty: toNum(r[9]),
