@@ -240,11 +240,13 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px}
 }
 .lost-products-note b{color:var(--text)}
 
-.exec-insight-card{margin-bottom:16px}
-.insight-list{display:flex;flex-direction:column;gap:2px;margin-top:8px}
-.insight-item{display:flex;align-items:flex-start;gap:10px;padding:8px 4px;font-size:13px;line-height:1.5;border-bottom:1px solid #f0f1f4}
-.insight-item:last-child{border-bottom:none}
-.insight-icon{flex:0 0 auto;font-size:11px;font-weight:800;width:16px;text-align:center;margin-top:2px}
+.exec-insight-card{margin-bottom:16px;padding-top:12px;padding-bottom:8px}
+.insight-list{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;margin-top:6px}
+@media(max-width:760px){.insight-list{grid-template-columns:1fr}}
+.insight-item{display:flex;align-items:flex-start;gap:8px;padding:6px 2px;font-size:12.5px;line-height:1.4;border-bottom:1px solid #f0f1f4}
+.insight-item:nth-last-child(-n+2){border-bottom:none}
+@media(max-width:760px){.insight-item:nth-last-child(-n+2){border-bottom:1px solid #f0f1f4}.insight-item:last-child{border-bottom:none}}
+.insight-icon{flex:0 0 auto;font-size:10px;font-weight:800;width:14px;text-align:center;margin-top:2px}
 .insight-good .insight-icon{color:var(--green)}
 .insight-bad .insight-icon{color:var(--red)}
 .insight-warn .insight-icon{color:var(--amber)}
