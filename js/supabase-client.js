@@ -76,44 +76,37 @@ function exportCsv(filename, headers, rows) {
   URL.revokeObjectURL(url);
 }
 
+const DETAIL_MODAL_COLS = [
+  { key: "sale_date", label: "날짜" },
+  { key: "item_name", label: "품명" },
+  { key: "customer", label: "거래처" },
+  { key: "manager", label: "담당자" },
+  { key: "qty", label: "수량", num: true },
+  { key: "unit_price", label: "단가", num: true },
+  { key: "total_amount", label: "금액", num: true },
+  { key: "note", label: "적요" }
+];
+
 function openSalesDetailModal(title, rows, opts = {}) {
-  const totalRevenue = rows.reduce((a, r) => a + (Number(r.total_amount) || 0), 0);
-  const totalQty = rows.reduce((a, r) => a + (Number(r.qty) || 0), 0);
-  const sorted = rows.slice().sort((a, b) => (b.sale_date + b.seq).localeCompare(a.sale_date + a.seq));
   const isAdmin = !!Store.profile?.is_admin;
+  const state = { search: "", sortKey: "sale_date", sortDir: "desc" };
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.innerHTML = `
     <div class="modal-card detail-modal-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
         <div>
           <div class="modal-title" style="margin-bottom:4px">🔍 ${escapeHtml(title)}</div>
-          <div class="text-faint" style="font-size:12px">${opts.subtitle ? escapeHtml(opts.subtitle) + " · " : ""}거래 ${fmtNum(rows.length)}건 · 매출 ${fmtWon(totalRevenue)} · 수량 ${fmtNum(totalQty)}개</div>
+          <div class="text-faint" style="font-size:12px" id="detailModalSummary"></div>
         </div>
-        <div style="display:flex;gap:8px;flex:0 0 auto">
+        <div style="display:flex;gap:8px;flex:0 0 auto;align-items:center">
+          <input type="text" id="detailModalSearch" class="search-input" style="width:200px" placeholder="품명·거래처·담당자·적요 검색...">
           ${isAdmin ? '<button class="btn btn-ghost btn-sm" id="detailModalAdd">+ 수기 등록</button>' : ""}
           <button class="btn btn-ghost btn-sm" id="detailModalExport">⇩ CSV</button>
           <button class="btn btn-ghost btn-sm" id="detailModalCloseX">✕</button>
         </div>
       </div>
-      <div class="table-wrap detail-modal-table-wrap">
-        <table class="data-table">
-          <thead><tr><th>날짜</th><th>품명</th><th>거래처</th><th>담당자</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th><th>적요</th>${isAdmin ? "<th></th>" : ""}</tr></thead>
-          <tbody>${sorted.length ? sorted.map(r => `
-            <tr>
-              <td>${r.sale_date}</td>
-              <td style="white-space:normal;min-width:160px">${escapeHtml(r.item_name)}</td>
-              <td>${escapeHtml(r.customer || "-")}</td>
-              <td>${escapeHtml(r.manager || "-")}</td>
-              <td class="num">${fmtNum(r.qty)}</td>
-              <td class="num">${fmtWon(r.unit_price)}</td>
-              <td class="num">${fmtWon(r.total_amount)}</td>
-              <td class="text-faint">${escapeHtml(r.note || "-")}</td>
-              ${isAdmin ? `<td style="white-space:nowrap"><button class="btn btn-ghost btn-sm sale-edit-btn" data-key="${escapeHtml(r.row_key)}">수정</button><button class="btn btn-ghost btn-sm sale-del-btn" data-key="${escapeHtml(r.row_key)}">삭제</button></td>` : ""}
-            </tr>`).join("") : `<tr><td colspan="${isAdmin ? 9 : 8}"><div class="empty-note">해당 조건의 거래 내역이 없습니다</div></td></tr>`}
-          </tbody>
-        </table>
-      </div>
+      <div class="table-wrap detail-modal-table-wrap" id="detailModalTableWrap"></div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="detailModalCloseBtn">닫기</button>
       </div>
@@ -123,30 +116,89 @@ function openSalesDetailModal(title, rows, opts = {}) {
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
   document.getElementById("detailModalCloseBtn").addEventListener("click", () => overlay.remove());
   document.getElementById("detailModalCloseX").addEventListener("click", () => overlay.remove());
-  document.getElementById("detailModalExport").addEventListener("click", () => {
-    exportCsv(`${title}_상세내역.csv`, ["날짜", "품명", "거래처", "담당자", "수량", "단가", "금액", "적요"],
-      sorted.map(r => [r.sale_date, r.item_name, r.customer, r.manager, r.qty, r.unit_price, r.total_amount, r.note]));
-  });
-  if (isAdmin) {
-    document.getElementById("detailModalAdd")?.addEventListener("click", () => openManualSaleModal());
-    overlay.querySelectorAll(".sale-edit-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const row = rows.find(r => r.row_key === btn.dataset.key);
-        if (row) openManualSaleModal(row);
-      });
-    });
-    overlay.querySelectorAll(".sale-del-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        if (!confirm("이 매출 기록을 삭제할까요? 되돌릴 수 없습니다.")) return;
-        const { error } = await sb.from("sales").delete().eq("row_key", btn.dataset.key);
-        if (error) { toast(error.message, "error"); return; }
-        toast("매출 기록이 삭제되었습니다.", "success");
-        overlay.remove();
-        await loadAllData(true);
-        renderView(AppState.view);
-      });
+  document.getElementById("detailModalSearch").addEventListener("input", (e) => { state.search = e.target.value; renderTable(); });
+
+  function getFiltered() {
+    let out = rows;
+    if (state.search.trim()) {
+      const t = state.search.trim().toLowerCase();
+      out = out.filter(r => [r.item_name, r.customer, r.manager, r.note].some(v => (v || "").toLowerCase().includes(t)));
+    }
+    return out.slice().sort((a, b) => {
+      let av, bv;
+      if (state.sortKey === "sale_date") { av = a.sale_date + String(a.seq || 0); bv = b.sale_date + String(b.seq || 0); }
+      else { av = a[state.sortKey]; bv = b[state.sortKey]; }
+      if (DETAIL_MODAL_COLS.find(c => c.key === state.sortKey)?.num) {
+        const an = Number(av) || 0, bn = Number(bv) || 0;
+        return state.sortDir === "asc" ? an - bn : bn - an;
+      }
+      av = av || ""; bv = bv || "";
+      return state.sortDir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
   }
+
+  function renderTable() {
+    const filtered = getFiltered();
+    const totalRevenue = filtered.reduce((a, r) => a + (Number(r.total_amount) || 0), 0);
+    const totalQty = filtered.reduce((a, r) => a + (Number(r.qty) || 0), 0);
+    const avgPrice = totalQty > 0 ? totalRevenue / totalQty : 0;
+    document.getElementById("detailModalSummary").textContent =
+      `${opts.subtitle ? opts.subtitle + " · " : ""}거래 ${fmtNum(filtered.length)}건 · 매출 ${fmtWon(totalRevenue)} · 수량 ${fmtNum(totalQty)}개 · 평균단가 ${fmtWon(avgPrice)}` +
+      (state.search.trim() ? ` (전체 ${fmtNum(rows.length)}건 중 검색결과)` : "");
+
+    const wrap = document.getElementById("detailModalTableWrap");
+    wrap.innerHTML = `
+      <table class="data-table">
+        <thead><tr>${DETAIL_MODAL_COLS.map(c => `<th data-key="${c.key}"${c.num ? ' class="num"' : ""}>${c.label}${state.sortKey === c.key ? (state.sortDir === "asc" ? " ▲" : " ▼") : ""}</th>`).join("")}${isAdmin ? "<th></th>" : ""}</tr></thead>
+        <tbody>${filtered.length ? filtered.map(r => `
+          <tr>
+            <td>${r.sale_date}</td>
+            <td style="white-space:nowrap">${escapeHtml(r.item_name)}</td>
+            <td style="white-space:nowrap">${escapeHtml(r.customer || "-")}</td>
+            <td style="white-space:nowrap">${escapeHtml(r.manager || "-")}</td>
+            <td class="num">${fmtNum(r.qty)}</td>
+            <td class="num">${fmtWon(r.unit_price)}</td>
+            <td class="num">${fmtWon(r.total_amount)}</td>
+            <td class="text-faint" style="white-space:nowrap">${escapeHtml(r.note || "-")}</td>
+            ${isAdmin ? `<td style="white-space:nowrap"><button class="btn btn-ghost btn-sm sale-edit-btn" data-key="${escapeHtml(r.row_key)}">수정</button><button class="btn btn-ghost btn-sm sale-del-btn" data-key="${escapeHtml(r.row_key)}">삭제</button></td>` : ""}
+          </tr>`).join("") : `<tr><td colspan="${isAdmin ? 9 : 8}"><div class="empty-note">해당 조건의 거래 내역이 없습니다</div></td></tr>`}
+        </tbody>
+      </table>
+    `;
+    wrap.querySelectorAll("th[data-key]").forEach(th => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.key;
+        if (state.sortKey === key) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+        else { state.sortKey = key; state.sortDir = key === "sale_date" ? "desc" : "desc"; }
+        renderTable();
+      });
+    });
+    document.getElementById("detailModalExport").onclick = () => {
+      exportCsv(`${title}_상세내역.csv`, ["날짜", "품명", "거래처", "담당자", "수량", "단가", "금액", "적요"],
+        filtered.map(r => [r.sale_date, r.item_name, r.customer, r.manager, r.qty, r.unit_price, r.total_amount, r.note]));
+    };
+    if (isAdmin) {
+      document.getElementById("detailModalAdd").onclick = () => openManualSaleModal();
+      wrap.querySelectorAll(".sale-edit-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const row = rows.find(r => r.row_key === btn.dataset.key);
+          if (row) openManualSaleModal(row);
+        });
+      });
+      wrap.querySelectorAll(".sale-del-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("이 매출 기록을 삭제할까요? 되돌릴 수 없습니다.")) return;
+          const { error } = await sb.from("sales").delete().eq("row_key", btn.dataset.key);
+          if (error) { toast(error.message, "error"); return; }
+          toast("매출 기록이 삭제되었습니다.", "success");
+          overlay.remove();
+          await loadAllData(true);
+          renderView(AppState.view);
+        });
+      });
+    }
+  }
+  renderTable();
 }
 
 function openManualSaleModal(existing = null) {

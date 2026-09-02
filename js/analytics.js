@@ -181,11 +181,15 @@ function computeMonthSnapshot(sales, year, month) {
   const prev = filterByRange(sales, prevStart, prevEnd);
   const curRevenue = sumAmount(cur);
   const prevRevenue = sumAmount(prev);
+  const curQty = sumQty(cur);
+  const prevQty = sumQty(prev);
   return {
-    label: `${year}년 ${month}월`, start, end,
+    label: `${year}년 ${month}월`, month, start, end,
     revenue: curRevenue, prevRevenue,
     growth: prevRevenue > 0 ? ((curRevenue - prevRevenue) / prevRevenue) * 100 : null,
-    qty: sumQty(cur), dealCount: cur.length
+    qty: curQty, prevQty,
+    qtyGrowth: prevQty > 0 ? ((curQty - prevQty) / prevQty) * 100 : null,
+    dealCount: cur.length
   };
 }
 
@@ -206,11 +210,14 @@ function computeQuarterlyBreakdown(sales, year) {
     const prev = filterByRange(sales, prevStart, prevEnd);
     const curRevenue = sumAmount(cur);
     const prevRevenue = sumAmount(prev);
+    const curQty = sumQty(cur);
+    const prevQty = sumQty(prev);
     quarters.push({
-      label: `${q + 1}분기`, start, end,
+      label: `${q + 1}분기`, q: q + 1, start, end,
       revenue: curRevenue, prevRevenue,
       growth: prevRevenue > 0 ? ((curRevenue - prevRevenue) / prevRevenue) * 100 : null,
-      qty: sumQty(cur), prevQty: sumQty(prev)
+      qty: curQty, prevQty,
+      qtyGrowth: prevQty > 0 ? ((curQty - prevQty) / prevQty) * 100 : null
     });
   }
   return quarters;

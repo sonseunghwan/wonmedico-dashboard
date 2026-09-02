@@ -302,12 +302,15 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px}
 .modal-error{color:var(--red);font-size:12.5px;min-height:16px;margin-bottom:4px}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
 
-.detail-modal-card{max-width:920px;width:92vw;max-height:82vh;display:flex;flex-direction:column}
+.detail-modal-card{max-width:1200px;width:94vw;max-height:82vh;display:flex;flex-direction:column}
 .detail-modal-table-wrap{overflow-y:auto;margin-top:12px;flex:1;border:1px solid var(--border);border-radius:8px}
 .detail-modal-table-wrap table thead th{position:sticky;top:0}
 
 .data-table tbody tr.clickable-row{cursor:pointer}
 .data-table tbody tr.clickable-row:hover{background:var(--brand-soft)}
+.quarterly-table tbody tr.quarter-month-row{background:#fafbfd;font-size:12px}
+.quarterly-table thead th{text-align:right}
+.quarterly-table thead th:first-child{text-align:left}
 
 .pill-group{display:inline-flex;flex-wrap:wrap;gap:8px}
 .pill-group .chip-btn{border:1px solid var(--border);background:var(--surface);border-radius:9999px;box-shadow:none}

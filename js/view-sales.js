@@ -89,29 +89,68 @@ function renderQuarterlyTable(el, sales, year) {
   const quarters = computeQuarterlyBreakdown(sales, year);
   const totalCur = quarters.reduce((a, q) => a + q.revenue, 0);
   const totalPrev = quarters.reduce((a, q) => a + q.prevRevenue, 0);
+  const totalCurQty = quarters.reduce((a, q) => a + q.qty, 0);
+  const totalPrevQty = quarters.reduce((a, q) => a + q.prevQty, 0);
+  const expanded = AppState.saQuarterExpanded || (AppState.saQuarterExpanded = new Set());
+
+  const monthRow = (m) => `
+    <tr class="quarter-month-row">
+      <td class="text-faint" style="padding-left:30px">${m.month}월</td>
+      <td class="num text-faint">${fmtWon(m.prevRevenue)}</td>
+      <td class="num text-faint">${fmtNum(m.prevQty)}개</td>
+      <td class="num text-faint">${fmtWon(m.revenue)}</td>
+      <td class="num text-faint">${fmtNum(m.qty)}개</td>
+      <td class="num">${deltaTag(m.growth)}</td>
+    </tr>`;
+
   el.innerHTML = `
-    <table class="data-table">
-      <thead><tr><th>분기</th><th class="num">작년</th><th class="num">올해</th><th class="num">증감</th><th class="num">올해 수량</th></tr></thead>
+    <table class="data-table quarterly-table">
+      <thead>
+        <tr>
+          <th rowspan="2">분기</th>
+          <th colspan="2" style="text-align:center;border-left:1px solid var(--border)">작년</th>
+          <th colspan="2" style="text-align:center;border-left:1px solid var(--border)">올해</th>
+          <th rowspan="2" class="num" style="border-left:1px solid var(--border)">증감</th>
+        </tr>
+        <tr>
+          <th class="num" style="border-left:1px solid var(--border)">금액</th><th class="num">수량</th>
+          <th class="num" style="border-left:1px solid var(--border)">금액</th><th class="num">수량</th>
+        </tr>
+      </thead>
       <tbody>
-        ${quarters.map(q => `
-          <tr>
-            <td>${q.label} <span class="text-faint" style="font-size:11px">${q.start.slice(5)} ~ ${q.end.slice(5)}</span></td>
-            <td class="num text-faint">${fmtWon(q.prevRevenue)}</td>
-            <td class="num" style="font-weight:700">${fmtWon(q.revenue)}</td>
-            <td class="num">${deltaTag(q.growth)}</td>
-            <td class="num">${fmtNum(q.qty)}개</td>
-          </tr>
-        `).join("")}
+        ${quarters.map(q => {
+          const isOpen = expanded.has(q.q);
+          const months = [1, 2, 3].map(offset => computeMonthSnapshot(sales, year, (q.q - 1) * 3 + offset));
+          return `
+            <tr class="quarter-row clickable-row" data-q="${q.q}">
+              <td><span class="text-faint" style="display:inline-block;width:12px">${isOpen ? "▾" : "▸"}</span>${q.label}</td>
+              <td class="num text-faint" style="border-left:1px solid var(--border)">${fmtWon(q.prevRevenue)}</td>
+              <td class="num text-faint">${fmtNum(q.prevQty)}개</td>
+              <td class="num" style="font-weight:700;border-left:1px solid var(--border)">${fmtWon(q.revenue)}</td>
+              <td class="num" style="font-weight:700">${fmtNum(q.qty)}개</td>
+              <td class="num" style="border-left:1px solid var(--border)">${deltaTag(q.growth)}</td>
+            </tr>
+            ${isOpen ? months.map(monthRow).join("") : ""}
+          `;
+        }).join("")}
         <tr style="background:#fafbfd">
           <td style="font-weight:700">합계</td>
-          <td class="num text-faint">${fmtWon(totalPrev)}</td>
-          <td class="num" style="font-weight:800">${fmtWon(totalCur)}</td>
-          <td class="num">${deltaTag(totalPrev > 0 ? ((totalCur - totalPrev) / totalPrev) * 100 : null)}</td>
-          <td class="num">${fmtNum(quarters.reduce((a, q) => a + q.qty, 0))}개</td>
+          <td class="num text-faint" style="border-left:1px solid var(--border)">${fmtWon(totalPrev)}</td>
+          <td class="num text-faint">${fmtNum(totalPrevQty)}개</td>
+          <td class="num" style="font-weight:800;border-left:1px solid var(--border)">${fmtWon(totalCur)}</td>
+          <td class="num" style="font-weight:800">${fmtNum(totalCurQty)}개</td>
+          <td class="num" style="border-left:1px solid var(--border)">${deltaTag(totalPrev > 0 ? ((totalCur - totalPrev) / totalPrev) * 100 : null)}</td>
         </tr>
       </tbody>
     </table>
   `;
+  el.querySelectorAll(".quarter-row").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const q = parseInt(tr.dataset.q, 10);
+      if (expanded.has(q)) expanded.delete(q); else expanded.add(q);
+      renderQuarterlyTable(el, sales, year);
+    });
+  });
 }
 
 function exportSalesTableCsv(tab, sales, range, prevRange, term) {
